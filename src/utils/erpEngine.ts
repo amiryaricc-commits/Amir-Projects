@@ -1,7 +1,11 @@
+export const DEFAULT_VAT_PERCENT = 10;
+
 export interface JournalLine {
   id: string;
   accountCode: string;
   accountName: string;
+  partyType?: 'مشتری' | 'تامین‌کننده' | 'پرسنل' | 'سهامدار' | '—';
+  partyName?: string;
   costCenter?: string;
   dimensionBranch?: string;
   dimensionChannel?: string;
@@ -203,7 +207,6 @@ export function calculateAssetDepreciation(
     };
   }
 
-  // Double declining balance approximation per month
   const monthlyRate = Math.min(0.15, 2 / safeLife);
   let book = purchaseValue;
   let lastMonthDep = 0;
@@ -279,10 +282,10 @@ export function allocateCostCenterExpense(
 
 export function calculatePosCartTotals(params: {
   items: { price: number; qty: number; category: string }[];
-  priceListMultiplier: number; // 1 = تکی, 0.88 = عمده, 0.92 = همکار
+  priceListMultiplier: number;
   couponPercent: number;
-  redeemLoyaltyPoints: number; // each point = 1,000 Toman
-  taxPercent: number;
+  redeemLoyaltyPoints: number;
+  taxPercent?: number;
   partnerCommissionPercent: number;
 }): {
   grossTotal: number;
@@ -295,13 +298,13 @@ export function calculatePosCartTotals(params: {
   partnerCommissionAmount: number;
   freeGiftTriggered: boolean;
 } {
+  const effectiveTaxPct = params.taxPercent ?? DEFAULT_VAT_PERCENT;
   const grossTotal = params.items.reduce(
     (sum, item) => sum + Math.round(item.price * params.priceListMultiplier) * item.qty,
     0
   );
   const totalQty = params.items.reduce((sum, item) => sum + item.qty, 0);
 
-  // Stepped quantity pricing rule: 5% automatic discount when buying >= 5 items
   const pricingRuleDiscount = totalQty >= 5 ? Math.round(grossTotal * 0.05) : 0;
   const freeGiftTriggered = totalQty >= 3;
 
@@ -315,7 +318,7 @@ export function calculatePosCartTotals(params: {
     params.redeemLoyaltyPoints * 1000
   );
   const taxableBase = Math.max(0, afterPricingRule - couponDiscount - loyaltyDiscount);
-  const taxAmount = Math.round((taxableBase * params.taxPercent) / 100);
+  const taxAmount = Math.round((taxableBase * effectiveTaxPct) / 100);
   const netPayable = taxableBase + taxAmount;
   const earnedLoyaltyPoints = Math.floor(netPayable / 50000);
   const partnerCommissionAmount = Math.round(
@@ -402,7 +405,7 @@ export function checkRolePermission(
     case 'unlock_fiscal_year':
     case 'manage_users_roles':
     case 'export_database':
-      return false; // Strictly Super Admin
+      return false;
     case 'post_journal':
       return role === 'مدیر مالی (Accounts Manager)';
     case 'adjust_stock':
@@ -457,7 +460,6 @@ export function postDoubleEntryToAccounts<
     balance: number;
   }
 >(accounts: T[], lines: { accountCode: string; debit: number; credit: number }[]): T[] {
-  // First update target accounts and their ancestor chain
   const deltas = new Map<string, number>();
 
   const byCode = new Map<string, T>();
@@ -469,7 +471,6 @@ export function postDoubleEntryToAccounts<
     const isDebitNature = target.category === 'دارایی' || target.category === 'هزینه';
     const netChange = isDebitNature ? line.debit - line.credit : line.credit - line.debit;
 
-    // Apply delta to target and all its parent accounts up the tree
     let curr: T | undefined = target;
     const visited = new Set<string>();
     while (curr && !visited.has(curr.code)) {
@@ -486,4 +487,248 @@ export function postDoubleEntryToAccounts<
   });
 }
 
+export function computeMultiLineInvoiceTotals(
+  lines: { qty: number; unitPrice: number; discountPercent: number; valuationRate: number }[],
+  vatPercent = DEFAULT_VAT_PERCENT
+): {
+  grossAmount: number;
+  totalDiscount: number;
+  netBeforeTax: number;
+  taxAmount: number;
+  grandTotal: number;
+  totalCogs: number;
+} {
+  let grossAmount = 0;
+  let totalDiscount = 0;
+  let totalCogs = 0;
 
+  for (const line of lines) {
+    const qty = Math.max(0, Number(line.qty) || 0);
+    const price = Math.max(0, Number(line.unitPrice) || 0);
+    const discPct = Math.min(100, Math.max(0, Number(line.discountPercent) || 0));
+    const lineGross = qty * price;
+    const lineDisc = Math.round((lineGross * discPct) / 100);
+    grossAmount += lineGross;
+    totalDiscount += lineDisc;
+    totalCogs += qty * (Number(line.valuationRate) || 0);
+  }
+
+  const netBeforeTax = Math.max(0, grossAmount - totalDiscount);
+  const taxAmount = Math.round((netBeforeTax * vatPercent) / 100);
+  const grandTotal = netBeforeTax + taxAmount;
+
+  return {
+    grossAmount,
+    totalDiscount,
+    netBeforeTax,
+    netTotal: netBeforeTax,
+    taxAmount,
+    grandTotal,
+    totalCogs,
+  };
+}
+
+export interface TrialBalanceRow {
+  code: string;
+  name: string;
+  category: 'دارایی' | 'بدهی' | 'سرمایه' | 'درآمد' | 'هزینه';
+  level: 'گروه' | 'کل' | 'معین' | 'تفصیلی';
+  openingDebit: number;
+  openingCredit: number;
+  periodDebit: number;
+  periodCredit: number;
+  closingDebit: number;
+  closingCredit: number;
+}
+
+export function computeTrialBalance6Col(
+  accounts: {
+    code: string;
+    name: string;
+    category: 'دارایی' | 'بدهی' | 'سرمایه' | 'درآمد' | 'هزینه';
+    level: 'گروه' | 'کل' | 'معین' | 'تفصیلی';
+    parentCode?: string;
+    openingBalance?: number;
+    balance: number;
+  }[],
+  targetLevel: 'گروه' | 'کل' | 'معین',
+  glEntries?: {
+    accountCode: string;
+    debit: number;
+    credit: number;
+    branchDimension?: string;
+    costCenter?: string;
+    isCancelled?: boolean;
+  }[],
+  filterBranch?: string
+): {
+  rows: TrialBalanceRow[];
+  totals: {
+    openingDebit: number;
+    openingCredit: number;
+    periodDebit: number;
+    periodCredit: number;
+    closingDebit: number;
+    closingCredit: number;
+    isBalanced: boolean;
+  };
+} {
+  const levelAccounts = accounts.filter((a) => a.level === targetLevel);
+  const isFilteredByBranch = Boolean(
+    filterBranch && filterBranch !== 'همه شعب' && filterBranch !== 'همه شعب سازمان'
+  );
+
+  const rows: TrialBalanceRow[] = levelAccounts.map((acc) => {
+    const isDebitNature = acc.category === 'دارایی' || acc.category === 'هزینه';
+
+    if (isFilteredByBranch && glEntries) {
+      // Sum actual GL entries matching this account (or child accounts starting with acc.codePrefix) and branch
+      const prefix = acc.level === 'گروه' ? acc.code.slice(0, 1) : acc.level === 'کل' ? acc.code.slice(0, 2) : acc.code;
+      const matchingGL = glEntries.filter(
+        (g) =>
+          !g.isCancelled &&
+          g.branchDimension === filterBranch &&
+          (g.accountCode === acc.code || g.accountCode.startsWith(prefix))
+      );
+      const periodDebit = matchingGL.reduce((s, g) => s + g.debit, 0);
+      const periodCredit = matchingGL.reduce((s, g) => s + g.credit, 0);
+      const net = periodDebit - periodCredit;
+      return {
+        code: acc.code,
+        name: acc.name,
+        category: acc.category,
+        level: acc.level,
+        openingDebit: 0,
+        openingCredit: 0,
+        periodDebit,
+        periodCredit,
+        closingDebit: net > 0 ? net : 0,
+        closingCredit: net < 0 ? Math.abs(net) : 0,
+      };
+    }
+
+    const opening = acc.openingBalance ?? Math.round(acc.balance * 0.8);
+    const closing = acc.balance;
+    const netDiff = closing - opening;
+
+    const openingDebit = isDebitNature ? opening : 0;
+    const openingCredit = !isDebitNature ? opening : 0;
+
+    const periodDebit = isDebitNature
+      ? Math.max(0, netDiff)
+      : Math.max(0, -netDiff);
+    const periodCredit = !isDebitNature
+      ? Math.max(0, netDiff)
+      : Math.max(0, -netDiff);
+
+    const closingDebit = isDebitNature ? closing : 0;
+    const closingCredit = !isDebitNature ? closing : 0;
+
+    return {
+      code: acc.code,
+      name: acc.name,
+      category: acc.category,
+      level: acc.level,
+      openingDebit,
+      openingCredit,
+      periodDebit,
+      periodCredit,
+      closingDebit,
+      closingCredit,
+    };
+  });
+
+  const totals = rows.reduce(
+    (acc, r) => ({
+      openingDebit: acc.openingDebit + r.openingDebit,
+      openingCredit: acc.openingCredit + r.openingCredit,
+      periodDebit: acc.periodDebit + r.periodDebit,
+      periodCredit: acc.periodCredit + r.periodCredit,
+      closingDebit: acc.closingDebit + r.closingDebit,
+      closingCredit: acc.closingCredit + r.closingCredit,
+      isBalanced: true,
+    }),
+    {
+      openingDebit: 0,
+      openingCredit: 0,
+      periodDebit: 0,
+      periodCredit: 0,
+      closingDebit: 0,
+      closingCredit: 0,
+      isBalanced: true,
+    }
+  );
+
+  totals.isBalanced = Math.abs(totals.closingDebit - totals.closingCredit) < 1;
+
+  return { rows, totals };
+}
+
+export function deductStockWithBundles<
+  T extends {
+    sku: string;
+    name: string;
+    stockQty: number;
+    valuationRate: number;
+    isBundle?: boolean;
+    bundleComponentItems?: { sku: string; name: string; qty: number }[];
+  }
+>(
+  inventory: T[],
+  soldLines: { sku: string; qty: number }[]
+): {
+  updatedInventory: T[];
+  updatedItems: T[];
+  totalCogs: number;
+  insufficientStockError?: string;
+} {
+  const requiredBySku = new Map<string, number>();
+
+  for (const sold of soldLines) {
+    if (sold.qty <= 0) continue;
+    requiredBySku.set(sold.sku, (requiredBySku.get(sold.sku) || 0) + sold.qty);
+
+    const itemObj = inventory.find((i) => i.sku === sold.sku);
+    if (itemObj?.isBundle && itemObj.bundleComponentItems) {
+      for (const comp of itemObj.bundleComponentItems) {
+        const compNeed = sold.qty * comp.qty;
+        requiredBySku.set(comp.sku, (requiredBySku.get(comp.sku) || 0) + compNeed);
+      }
+    }
+  }
+
+  for (const [sku, neededQty] of requiredBySku.entries()) {
+    const itemObj = inventory.find((i) => i.sku === sku);
+    if (itemObj && itemObj.stockQty < neededQty) {
+      return {
+        updatedInventory: inventory,
+        updatedItems: inventory,
+        totalCogs: 0,
+        insufficientStockError: `کسری موجودی انبار: کالای «${itemObj.name}» (${sku}) دارای موجودی ${itemObj.stockQty} است اما ${neededQty} واحد نیاز است.`,
+      };
+    }
+  }
+
+  let totalCogs = 0;
+  for (const sold of soldLines) {
+    const itemObj = inventory.find((i) => i.sku === sold.sku);
+    if (itemObj) {
+      totalCogs += sold.qty * itemObj.valuationRate;
+    }
+  }
+
+  const updatedInventory = inventory.map((item) => {
+    const deduct = requiredBySku.get(item.sku) || 0;
+    if (deduct === 0) return item;
+    return {
+      ...item,
+      stockQty: Math.max(0, item.stockQty - deduct),
+    };
+  });
+
+  return {
+    updatedInventory,
+    updatedItems: updatedInventory,
+    totalCogs,
+  };
+}

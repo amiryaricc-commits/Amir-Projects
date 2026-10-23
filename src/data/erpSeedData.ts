@@ -1,3 +1,5 @@
+export type DocStatus = 0 | 1 | 2; // 0 = پیش‌نویس (Draft), 1 = ثبت قطعی (Submitted), 2 = ابطال‌شده (Cancelled)
+
 export interface AccountNode {
   id: string;
   code: string;
@@ -5,39 +7,122 @@ export interface AccountNode {
   category: 'دارایی' | 'بدهی' | 'سرمایه' | 'درآمد' | 'هزینه';
   level: 'گروه' | 'کل' | 'معین' | 'تفصیلی';
   parentCode?: string;
+  openingBalance?: number;
   balance: number;
   currency: 'IRR' | 'USD' | 'AED';
+}
+
+export interface GLEntryRecord {
+  id: string;
+  postingDate: string;
+  accountCode: string;
+  accountName: string;
+  partyType?: 'مشتری' | 'تامین‌کننده' | 'پرسنل' | 'سهامدار' | '—';
+  partyName?: string;
+  debit: number;
+  credit: number;
+  voucherType:
+    | 'Sales Invoice'
+    | 'Purchase Invoice'
+    | 'Journal Entry'
+    | 'Payment Entry'
+    | 'POS Invoice'
+    | 'Cheque Clearance';
+  voucherNo: string;
+  costCenter: string;
+  branchDimension: string;
+  remarks?: string;
+  isCancelled?: boolean;
+}
+
+export interface InvoiceLineItem {
+  id: string;
+  sku: string;
+  itemName: string;
+  uom: string;
+  qty: number;
+  unitPrice: number;
+  discountPercent: number;
+  netLineAmount: number;
+  valuationRate: number;
 }
 
 export interface SalesInvoiceRecord {
   id: string;
   invoiceNo: string;
+  docstatus: DocStatus;
   customerName: string;
   date: string;
   dueDate: string;
   branchDimension: string;
+  costCenter?: string;
   channelDimension: string;
   paymentTermsTemplate: string;
   updateStock: boolean;
   isSubscription: boolean;
   subscriptionInterval?: string;
-  status: 'پرداخت‌شده' | 'اقساطی فعال' | 'معوق' | 'مرجوعی (یادداشت بستانکاری)';
+  status: 'پیش‌نویس' | 'پرداخت‌شده' | 'اقساطی فعال' | 'معوق' | 'مرجوعی (یادداشت بستانکاری)' | 'ابطال‌شده';
   totalAmount: number;
   paidAmount: number;
   taxAmount: number;
+  cogsAmount?: number;
   itemsSummary: string;
+  lines?: InvoiceLineItem[];
 }
 
 export interface PurchaseInvoiceRecord {
   id: string;
   billNo: string;
+  docstatus: DocStatus;
   supplierName: string;
   date: string;
   warehouse: string;
-  status: 'تسویه‌شده' | 'بدهکار باز' | 'برگشت از خرید (یادداشت بدهکاری)';
+  branchDimension?: string;
+  costCenter?: string;
+  status: 'پیش‌نویس' | 'تسویه‌شده' | 'بدهکار باز' | 'برگشت از خرید (یادداشت بدهکاری)' | 'ابطال‌شده';
   totalAmount: number;
+  paidAmount?: number;
   landedCostAdded: number;
   itemsSummary: string;
+  lines?: InvoiceLineItem[];
+}
+
+export interface JournalEntryRecord {
+  id: string;
+  voucherNo: string;
+  postingDate: string;
+  docstatus: DocStatus;
+  title: string;
+  branchDimension: string;
+  totalDebit: number;
+  totalCredit: number;
+  lines: {
+    id: string;
+    accountCode: string;
+    accountName: string;
+    partyType?: 'مشتری' | 'تامین‌کننده' | 'پرسنل' | 'سهامدار' | '—';
+    partyName?: string;
+    costCenter?: string;
+    dimensionBranch?: string;
+    debit: number;
+    credit: number;
+    note?: string;
+  }[];
+}
+
+export interface PaymentEntryRecord {
+  id: string;
+  paymentNo: string;
+  postingDate: string;
+  docstatus: DocStatus;
+  paymentType: 'دریافت از مشتری (Receive)' | 'پرداخت به تامین‌کننده (Pay)';
+  partyName: string;
+  modeOfPayment: 'حواله بانکی پایا/ساتنا' | 'کارتخوان (POS)' | 'نقد (صندوق)' | 'چک صیادی';
+  bankAccountCode: string;
+  referenceVoucherNo: string;
+  amount: number;
+  branchDimension: string;
+  costCenter: string;
 }
 
 export interface ChequeRecord {
@@ -89,6 +174,12 @@ export interface ShareholderRecord {
   dividendPaid: number;
 }
 
+export interface BundleComponentSpec {
+  sku: string;
+  name: string;
+  qty: number;
+}
+
 export interface InventoryItemRecord {
   id: string;
   sku: string;
@@ -100,13 +191,14 @@ export interface InventoryItemRecord {
   condition?: 'آکبند شرکتی' | 'کارکرده / تستر';
   isBundle?: boolean;
   bundleComponents?: string[];
+  bundleComponentItems?: BundleComponentSpec[];
   uomPrimary: string;
   uomSecondary: string;
-  conversionFactor: number; // e.g. 1 کارتن = 100 عدد
+  conversionFactor: number;
   stockQty: number;
   reservedQty: number;
   reorderLevel: number;
-  valuationRate: number; // Moving Average Cost
+  valuationRate: number;
   retailPrice: number;
   wholesalePrice: number;
   partnerPrice: number;
@@ -166,39 +258,194 @@ export interface AuditLogRecord {
 }
 
 export const INITIAL_ACCOUNTS: AccountNode[] = [
-  { id: 'acc-1', code: '1000', name: 'دارایی‌ها', category: 'دارایی', level: 'گروه', balance: 4850000000, currency: 'IRR' },
-  { id: 'acc-2', code: '1100', name: 'دارایی‌های جاری و نقدینگی', category: 'دارایی', level: 'کل', parentCode: '1000', balance: 3260000000, currency: 'IRR' },
-  { id: 'acc-3', code: '1101', name: 'موجودی نقد و بانک‌های ریالی', category: 'دارایی', level: 'معین', parentCode: '1100', balance: 1420000000, currency: 'IRR' },
-  { id: 'acc-4', code: '110101', name: 'بانک ملت - شعبه مرکزی (حساب جاری پایا/ساتنا)', category: 'دارایی', level: 'تفصیلی', parentCode: '1101', balance: 980000000, currency: 'IRR' },
-  { id: 'acc-5', code: '110102', name: 'صندوق فروشگاهی و کارتخوان شعبه الهیه', category: 'دارایی', level: 'تفصیلی', parentCode: '1101', balance: 440000000, currency: 'IRR' },
-  { id: 'acc-6', code: '1102', name: 'حساب‌های دریافتنی تجاری (مشتریان)', category: 'دارایی', level: 'معین', parentCode: '1100', balance: 680000000, currency: 'IRR' },
-  { id: 'acc-7', code: '1103', name: 'اسناد دریافتنی در جریان وصول (چک‌های صیادی)', category: 'دارایی', level: 'معین', parentCode: '1100', balance: 320000000, currency: 'IRR' },
-  { id: 'acc-8', code: '1104', name: 'موجودی مواد و کالای انبار مرکزی', category: 'دارایی', level: 'معین', parentCode: '1100', balance: 840000000, currency: 'IRR' },
-  { id: 'acc-9', code: '1200', name: 'دارایی‌های ثابت مشهود و اموال', category: 'دارایی', level: 'کل', parentCode: '1000', balance: 1590000000, currency: 'IRR' },
-  { id: 'acc-10', code: '2000', name: 'بدهی‌ها و تعهدات', category: 'بدهی', level: 'گروه', balance: 960000000, currency: 'IRR' },
-  { id: 'acc-11', code: '2101', name: 'حساب‌های پرداختنی تجاری (تامین‌کنندگان)', category: 'بدهی', level: 'معین', parentCode: '2000', balance: 610000000, currency: 'IRR' },
-  { id: 'acc-12', code: '2102', name: 'مالیات بر ارزش افزوده و کسورات تکلیفی پرداختنی', category: 'بدهی', level: 'معین', parentCode: '2000', balance: 145000000, currency: 'IRR' },
-  { id: 'acc-13', code: '2103', name: 'ذخیره پورسانت فروشندگان و معرف‌ها', category: 'بدهی', level: 'معین', parentCode: '2000', balance: 205000000, currency: 'IRR' },
-  { id: 'acc-14', code: '3000', name: 'حقوق صاحبان سهام و سرمایه', category: 'سرمایه', level: 'گروه', balance: 3000000000, currency: 'IRR' },
-  { id: 'acc-15', code: '3101', name: 'سرمایه ثبت‌شده سهامداران و شرکا', category: 'سرمایه', level: 'معین', parentCode: '3000', balance: 2500000000, currency: 'IRR' },
-  { id: 'acc-16', code: '3102', name: 'سود و زیان انباشته سنواتی', category: 'سرمایه', level: 'معین', parentCode: '3000', balance: 500000000, currency: 'IRR' },
-  { id: 'acc-17', code: '4000', name: 'درآمدهای عملیاتی و فروش', category: 'درآمد', level: 'گروه', balance: 2150000000, currency: 'IRR' },
-  { id: 'acc-18', code: '4101', name: 'درآمد فروش خالص کالا (حضوری و آنلاین)', category: 'درآمد', level: 'معین', parentCode: '4000', balance: 1980000000, currency: 'IRR' },
-  { id: 'acc-19', code: '4102', name: 'درآمد خدمات تعمیرات و اشتراک‌های دوره‌ای', category: 'درآمد', level: 'معین', parentCode: '4000', balance: 170000000, currency: 'IRR' },
-  { id: 'acc-20', code: '5000', name: 'بهای تمام‌شده و هزینه‌های عملیاتی', category: 'هزینه', level: 'گروه', balance: 1260000000, currency: 'IRR' },
-  { id: 'acc-21', code: '5101', name: 'بهای تمام‌شده کالای فروش‌رفته (میانگین موزون)', category: 'هزینه', level: 'معین', parentCode: '5000', balance: 910000000, currency: 'IRR' },
-  { id: 'acc-22', code: '5201', name: 'هزینه حقوق، دستمزد و پورسانت تیم فروش', category: 'هزینه', level: 'معین', parentCode: '5000', balance: 220000000, currency: 'IRR' },
-  { id: 'acc-23', code: '5202', name: 'هزینه استهلاک دارایی‌های ثابت و اجاره شعب', category: 'هزینه', level: 'معین', parentCode: '5000', balance: 130000000, currency: 'IRR' },
+  // ۱۰۰۰ - دارایی‌ها (جمع: ۴,۸۵۰,۰۰۰,۰۰۰)
+  { id: 'acc-1', code: '1000', name: 'دارایی‌ها', category: 'دارایی', level: 'گروه', openingBalance: 4100000000, balance: 4850000000, currency: 'IRR' },
+  { id: 'acc-2', code: '1100', name: 'دارایی‌های جاری و نقدینگی', category: 'دارایی', level: 'کل', parentCode: '1000', openingBalance: 2650000000, balance: 3260000000, currency: 'IRR' },
+  { id: 'acc-3', code: '1101', name: 'موجودی نقد و بانک‌های ریالی', category: 'دارایی', level: 'معین', parentCode: '1100', openingBalance: 1150000000, balance: 1420000000, currency: 'IRR' },
+  { id: 'acc-4', code: '110101', name: 'بانک ملت - شعبه مرکزی (حساب جاری پایا/ساتنا)', category: 'دارایی', level: 'تفصیلی', parentCode: '1101', openingBalance: 790000000, balance: 980000000, currency: 'IRR' },
+  { id: 'acc-5', code: '110102', name: 'صندوق فروشگاهی و کارتخوان شعبه الهیه', category: 'دارایی', level: 'تفصیلی', parentCode: '1101', openingBalance: 360000000, balance: 440000000, currency: 'IRR' },
+  { id: 'acc-6', code: '1102', name: 'حساب‌های دریافتنی تجاری (مشتریان)', category: 'دارایی', level: 'معین', parentCode: '1100', openingBalance: 520000000, balance: 680000000, currency: 'IRR' },
+  { id: 'acc-7', code: '1103', name: 'اسناد دریافتنی در جریان وصول (چک‌های صیادی)', category: 'دارایی', level: 'معین', parentCode: '1100', openingBalance: 280000000, balance: 320000000, currency: 'IRR' },
+  { id: 'acc-8', code: '1104', name: 'موجودی مواد و کالای انبار مرکزی', category: 'دارایی', level: 'معین', parentCode: '1100', openingBalance: 700000000, balance: 840000000, currency: 'IRR' },
+  { id: 'acc-9', code: '1200', name: 'دارایی‌های غیرجاری و ثابت مشهود', category: 'دارایی', level: 'کل', parentCode: '1000', openingBalance: 1450000000, balance: 1590000000, currency: 'IRR' },
+  { id: 'acc-9b', code: '1201', name: 'اموال، ماشین‌آلات و تجهیزات فروشگاهی (خالص)', category: 'دارایی', level: 'معین', parentCode: '1200', openingBalance: 1450000000, balance: 1590000000, currency: 'IRR' },
+
+  // ۲۰۰۰ - بدهی‌ها (جمع: ۹۶۰,۰۰۰,۰۰۰)
+  { id: 'acc-10', code: '2000', name: 'بدهی‌ها و تعهدات', category: 'بدهی', level: 'گروه', openingBalance: 760000000, balance: 960000000, currency: 'IRR' },
+  { id: 'acc-10b', code: '2100', name: 'بدهی‌های جاری تجاری و مالیاتی', category: 'بدهی', level: 'کل', parentCode: '2000', openingBalance: 760000000, balance: 960000000, currency: 'IRR' },
+  { id: 'acc-11', code: '2101', name: 'حساب‌های پرداختنی تجاری (تامین‌کنندگان)', category: 'بدهی', level: 'معین', parentCode: '2100', openingBalance: 480000000, balance: 571500000, currency: 'IRR' },
+  { id: 'acc-12', code: '2102', name: 'مالیات بر ارزش افزوده و کسورات تکلیفی پرداختنی', category: 'بدهی', level: 'معین', parentCode: '2100', openingBalance: 110000000, balance: 145000000, currency: 'IRR' },
+  { id: 'acc-13', code: '2103', name: 'ذخیره پورسانت فروشندگان و معرف‌ها', category: 'بدهی', level: 'معین', parentCode: '2100', openingBalance: 140000000, balance: 205000000, currency: 'IRR' },
+  { id: 'acc-13b', code: '2104', name: 'حساب واسط ترخیص و هزینه‌های گمرکی (Landed Cost)', category: 'بدهی', level: 'معین', parentCode: '2100', openingBalance: 30000000, balance: 38500000, currency: 'IRR' },
+
+  // ۳۰۰۰ - حقوق صاحبان سهام (جمع: ۳,۰۰۰,۰۰۰,۰۰۰)
+  { id: 'acc-14', code: '3000', name: 'حقوق صاحبان سهام و سرمایه', category: 'سرمایه', level: 'گروه', openingBalance: 3000000000, balance: 3000000000, currency: 'IRR' },
+  { id: 'acc-14b', code: '3100', name: 'سرمایه و اندوخته‌های قانونی', category: 'سرمایه', level: 'کل', parentCode: '3000', openingBalance: 3000000000, balance: 3000000000, currency: 'IRR' },
+  { id: 'acc-15', code: '3101', name: 'سرمایه ثبت‌شده سهامداران و شرکا', category: 'سرمایه', level: 'معین', parentCode: '3100', openingBalance: 2500000000, balance: 2500000000, currency: 'IRR' },
+  { id: 'acc-16', code: '3102', name: 'سود و زیان انباشته سنواتی', category: 'سرمایه', level: 'معین', parentCode: '3100', openingBalance: 500000000, balance: 500000000, currency: 'IRR' },
+
+  // ۴۰۰۰ - درآمدها (جمع: ۲,۱۵۰,۰۰۰,۰۰۰)
+  { id: 'acc-17', code: '4000', name: 'درآمدهای عملیاتی و فروش', category: 'درآمد', level: 'گروه', openingBalance: 1200000000, balance: 2150000000, currency: 'IRR' },
+  { id: 'acc-17b', code: '4100', name: 'درآمد فروش کالا و خدمات', category: 'درآمد', level: 'کل', parentCode: '4000', openingBalance: 1200000000, balance: 2150000000, currency: 'IRR' },
+  { id: 'acc-18', code: '4101', name: 'درآمد فروش خالص کالا (حضوری و آنلاین)', category: 'درآمد', level: 'معین', parentCode: '4100', openingBalance: 1100000000, balance: 1980000000, currency: 'IRR' },
+  { id: 'acc-19', code: '4102', name: 'درآمد خدمات تعمیرات و اشتراک‌های دوره‌ای', category: 'درآمد', level: 'معین', parentCode: '4100', openingBalance: 100000000, balance: 170000000, currency: 'IRR' },
+
+  // ۵۰۰۰ - هزینه‌ها و بهای تمام‌شده (جمع: ۱,۲۶۰,۰۰۰,۰۰۰)
+  { id: 'acc-20', code: '5000', name: 'بهای تمام‌شده و هزینه‌های عملیاتی', category: 'هزینه', level: 'گروه', openingBalance: 860000000, balance: 1260000000, currency: 'IRR' },
+  { id: 'acc-20b', code: '5100', name: 'بهای تمام‌شده و هزینه‌های توزیع و فروش', category: 'هزینه', level: 'کل', parentCode: '5000', openingBalance: 860000000, balance: 1260000000, currency: 'IRR' },
+  { id: 'acc-21', code: '5101', name: 'بهای تمام‌شده کالای فروش‌رفته (COGS)', category: 'هزینه', level: 'معین', parentCode: '5100', openingBalance: 610000000, balance: 910000000, currency: 'IRR' },
+  { id: 'acc-22', code: '5201', name: 'هزینه حقوق، دستمزد و پورسانت تیم فروش', category: 'هزینه', level: 'معین', parentCode: '5100', openingBalance: 150000000, balance: 220000000, currency: 'IRR' },
+  { id: 'acc-23', code: '5202', name: 'هزینه استهلاک دارایی‌های ثابت و اجاره شعب', category: 'هزینه', level: 'معین', parentCode: '5100', openingBalance: 100000000, balance: 130000000, currency: 'IRR' },
+];
+
+export const INITIAL_GL_ENTRIES: GLEntryRecord[] = [
+  {
+    id: 'gle-1',
+    postingDate: '۱۴۰۴/۰۸/۰۱',
+    accountCode: '110101',
+    accountName: 'بانک ملت - شعبه مرکزی (حساب جاری پایا/ساتنا)',
+    partyType: 'مشتری',
+    partyName: 'پخش سراسری نیکوتین‌پارس (عمده)',
+    debit: 43500000,
+    credit: 0,
+    voucherType: 'Sales Invoice',
+    voucherNo: 'SINV-1404-0108',
+    costCenter: 'فروشگاه و شوروم شعبه الهیه',
+    branchDimension: 'شعبه مرکزی تهران',
+    remarks: 'دریافت پیش‌پرداخت ۳۰٪ فاکتور فروش اقساطی',
+  },
+  {
+    id: 'gle-2',
+    postingDate: '۱۴۰۴/۰۸/۰۱',
+    accountCode: '1102',
+    accountName: 'حساب‌های دریافتنی تجاری (مشتریان)',
+    partyType: 'مشتری',
+    partyName: 'پخش سراسری نیکوتین‌پارس (عمده)',
+    debit: 101500000,
+    credit: 0,
+    voucherType: 'Sales Invoice',
+    voucherNo: 'SINV-1404-0108',
+    costCenter: 'فروشگاه و شوروم شعبه الهیه',
+    branchDimension: 'شعبه مرکزی تهران',
+    remarks: 'مانده تعهد اقساطی یک‌ماهه و دوماهه (۷۰٪)',
+  },
+  {
+    id: 'gle-3',
+    postingDate: '۱۴۰۴/۰۸/۰۱',
+    accountCode: '4101',
+    accountName: 'درآمد فروش خالص کالا (حضوری و آنلاین)',
+    partyType: 'مشتری',
+    partyName: 'پخش سراسری نیکوتین‌پارس (عمده)',
+    debit: 0,
+    credit: 131818182,
+    voucherType: 'Sales Invoice',
+    voucherNo: 'SINV-1404-0108',
+    costCenter: 'فروشگاه و شوروم شعبه الهیه',
+    branchDimension: 'شعبه مرکزی تهران',
+    remarks: 'ثبت درآمد خالص فروش عمده',
+  },
+  {
+    id: 'gle-4',
+    postingDate: '۱۴۰۴/۰۸/۰۱',
+    accountCode: '2102',
+    accountName: 'مالیات بر ارزش افزوده و کسورات تکلیفی پرداختنی',
+    partyType: '—',
+    partyName: 'سازمان امور مالیاتی (VAT ۱۰٪)',
+    debit: 0,
+    credit: 13181818,
+    voucherType: 'Sales Invoice',
+    voucherNo: 'SINV-1404-0108',
+    costCenter: 'فروشگاه و شوروم شعبه الهیه',
+    branchDimension: 'شعبه مرکزی تهران',
+    remarks: 'مالیات بر ارزش افزوده ۱۰٪ فاکتور فروش',
+  },
+  {
+    id: 'gle-5',
+    postingDate: '۱۴۰۴/۰۸/۰۱',
+    accountCode: '5101',
+    accountName: 'بهای تمام‌شده کالای فروش‌رفته (COGS)',
+    partyType: '—',
+    partyName: 'کاردکس انبار مرکزی',
+    debit: 104000000,
+    credit: 0,
+    voucherType: 'Sales Invoice',
+    voucherNo: 'SINV-1404-0108',
+    costCenter: 'انبار مرکزی و لجستیک کهریزک',
+    branchDimension: 'شعبه مرکزی تهران',
+    remarks: 'ثبت خودکار بهای تمام‌شده (Perpetual Inventory COGS)',
+  },
+  {
+    id: 'gle-6',
+    postingDate: '۱۴۰۴/۰۸/۰۱',
+    accountCode: '1104',
+    accountName: 'موجودی مواد و کالای انبار مرکزی',
+    partyType: '—',
+    partyName: 'کاردکس انبار مرکزی',
+    debit: 0,
+    credit: 104000000,
+    voucherType: 'Sales Invoice',
+    voucherNo: 'SINV-1404-0108',
+    costCenter: 'انبار مرکزی و لجستیک کهریزک',
+    branchDimension: 'شعبه مرکزی تهران',
+    remarks: 'خروج کالا از انبار به نرخ میانگین موزون',
+  },
+  {
+    id: 'gle-7',
+    postingDate: '۱۴۰۴/۰۷/۲۰',
+    accountCode: '1104',
+    accountName: 'موجودی مواد و کالای انبار مرکزی',
+    partyType: 'تامین‌کننده',
+    partyName: 'بازرگانی شنژن ویپ تریدینگ (واردات مستقیم)',
+    debit: 420000000,
+    credit: 0,
+    voucherType: 'Purchase Invoice',
+    voucherNo: 'PINV-1404-0084',
+    costCenter: 'انبار مرکزی و لجستیک کهریزک',
+    branchDimension: 'انبار مرکزی کهریزک',
+    remarks: 'ورود کالای وارداتی به انبار همراه با سرشکن گمرک',
+  },
+  {
+    id: 'gle-8',
+    postingDate: '۱۴۰۴/۰۷/۲۰',
+    accountCode: '2101',
+    accountName: 'حساب‌های پرداختنی تجاری (تامین‌کنندگان)',
+    partyType: 'تامین‌کننده',
+    partyName: 'بازرگانی شنژن ویپ تریدینگ (واردات مستقیم)',
+    debit: 0,
+    credit: 381500000,
+    voucherType: 'Purchase Invoice',
+    voucherNo: 'PINV-1404-0084',
+    costCenter: 'انبار مرکزی و لجستیک کهریزک',
+    branchDimension: 'انبار مرکزی کهریزک',
+    remarks: 'بهای خالص فاکتور تامین‌کننده خارجی',
+  },
+  {
+    id: 'gle-9',
+    postingDate: '۱۴۰۴/۰۷/۲۰',
+    accountCode: '2104',
+    accountName: 'حساب واسط ترخیص و هزینه‌های گمرکی (Landed Cost)',
+    partyType: 'تامین‌کننده',
+    partyName: 'گمرک و ترخیص‌کار رسمی',
+    debit: 0,
+    credit: 38500000,
+    voucherType: 'Purchase Invoice',
+    voucherNo: 'PINV-1404-0084',
+    costCenter: 'انبار مرکزی و لجستیک کهریزک',
+    branchDimension: 'انبار مرکزی کهریزک',
+    remarks: 'سند سرشکن هزینه‌های گمرکی و حمل (Landed Cost Voucher)',
+  },
 ];
 
 export const INITIAL_SALES_INVOICES: SalesInvoiceRecord[] = [
   {
     id: 'sinv-1',
     invoiceNo: 'SINV-1404-0108',
+    docstatus: 1,
     customerName: 'پخش سراسری نیکوتین‌پارس (عمده)',
     date: '۱۴۰۴/۰۸/۰۱',
     dueDate: '۱۴۰۴/۱۰/۰۱',
     branchDimension: 'شعبه مرکزی تهران',
+    costCenter: 'فروشگاه و شوروم شعبه الهیه',
     channelDimension: 'فروش سازمانی B2B',
     paymentTermsTemplate: '۳۰٪ نقد، ۳۵٪ یک ماهه، ۳۵٪ دو ماهه',
     updateStock: true,
@@ -207,15 +454,42 @@ export const INITIAL_SALES_INVOICES: SalesInvoiceRecord[] = [
     totalAmount: 145000000,
     paidAmount: 43500000,
     taxAmount: 13181818,
+    cogsAmount: 104000000,
     itemsSummary: '۱۰۰ عدد پاد Peak Bar 60000 + ۵۰ بسته کویل',
+    lines: [
+      {
+        id: 'sl-1',
+        sku: 'PK60-MANGO-50',
+        itemName: 'پاد یکبارمصرف هوشمند Peak Bar 60000 — طعم انبه یخ',
+        uom: 'عدد',
+        qty: 100,
+        unitPrice: 988182,
+        discountPercent: 0,
+        netLineAmount: 98818182,
+        valuationRate: 780000,
+      },
+      {
+        id: 'sl-2',
+        sku: 'COIL-XROS-06',
+        itemName: 'بسته ۴ عددی کارتریج و کویل XROS Mesh 0.6Ω',
+        uom: 'بسته',
+        qty: 50,
+        unitPrice: 660000,
+        discountPercent: 0,
+        netLineAmount: 33000000,
+        valuationRate: 520000,
+      },
+    ],
   },
   {
     id: 'sinv-2',
     invoiceNo: 'SINV-1404-0109',
+    docstatus: 1,
     customerName: 'امیرحسین رضایی (باشگاه طلایی)',
     date: '۱۴۰۴/۰۸/۰۲',
     dueDate: '۱۴۰۴/۰۸/۰۲',
     branchDimension: 'شعبه الهیه',
+    costCenter: 'فروشگاه و شوروم شعبه الهیه',
     channelDimension: 'صندوق فروشگاهی POS',
     paymentTermsTemplate: 'تسویه نقد و کارتخوان در لحظه',
     updateStock: true,
@@ -224,33 +498,39 @@ export const INITIAL_SALES_INVOICES: SalesInvoiceRecord[] = [
     totalAmount: 4850000,
     paidAmount: 4850000,
     taxAmount: 440909,
+    cogsAmount: 1760000,
     itemsSummary: 'پک استارتر دستگاه + جویس انبه + کویل یدک',
   },
   {
     id: 'sinv-3',
     invoiceNo: 'SINV-1404-0110',
+    docstatus: 0,
     customerName: 'کافه ویپ نیاوران (اشتراک ماهانه)',
-    date: '۱۴۰۴/۰۷/۲۸',
+    date: '۱۴۰۴/۰۸/۰۲',
     dueDate: '۱۴۰۴/۰۸/۲۸',
     branchDimension: 'شعبه الهیه',
+    costCenter: 'فروشگاه اینترنتی و دیجیتال مارکتینگ',
     channelDimension: 'اشتراک خودکار (Auto-Repeat)',
     paymentTermsTemplate: 'اشتراک ماهانه تامین استند تستر',
     updateStock: true,
     isSubscription: true,
     subscriptionInterval: 'ماهانه (اول هر ماه)',
-    status: 'پرداخت‌شده',
+    status: 'پیش‌نویس',
     totalAmount: 28000000,
-    paidAmount: 28000000,
+    paidAmount: 0,
     taxAmount: 2545454,
-    itemsSummary: 'شارژ ماهانه ۳۰ عدد سالت و جویس تستر витриن',
+    cogsAmount: 13800000,
+    itemsSummary: 'شارژ ماهانه ۳۰ عدد سالت و جویس تستر ویترین',
   },
   {
     id: 'sinv-4',
     invoiceNo: 'CN-1404-0012',
+    docstatus: 1,
     customerName: 'فروشگاه دود سفید کرج',
     date: '۱۴۰۴/۰۷/۲۵',
     dueDate: '۱۴۰۴/۰۷/۲۵',
     branchDimension: 'شعبه مرکزی تهران',
+    costCenter: 'فروشگاه و شوروم شعبه الهیه',
     channelDimension: 'اینستاگرام و تلگرام',
     paymentTermsTemplate: 'یادداشت بستانکاری (Credit Note)',
     updateStock: true,
@@ -259,6 +539,7 @@ export const INITIAL_SALES_INVOICES: SalesInvoiceRecord[] = [
     totalAmount: 6400000,
     paidAmount: 6400000,
     taxAmount: 581818,
+    cogsAmount: 3120000,
     itemsSummary: 'برگشت ۴ عدد دستگاه به علت مغایرت رنگ سفارش',
   },
 ];
@@ -267,35 +548,129 @@ export const INITIAL_PURCHASE_INVOICES: PurchaseInvoiceRecord[] = [
   {
     id: 'pinv-1',
     billNo: 'PINV-1404-0084',
+    docstatus: 1,
     supplierName: 'بازرگانی شنژن ویپ تریدینگ (واردات مستقیم)',
     date: '۱۴۰۴/۰۷/۲۰',
     warehouse: 'انبار مرکزی کهریزک',
+    branchDimension: 'انبار مرکزی کهریزک',
+    costCenter: 'انبار مرکزی و لجستیک کهریزک',
     status: 'تسویه‌شده',
     totalAmount: 420000000,
+    paidAmount: 420000000,
     landedCostAdded: 38500000,
     itemsSummary: '۵ کارتن (۵۰۰ عدد) پاد Peak Bar 60000 + ۳۰۰ عدد جویس ۶۰ میل',
   },
   {
     id: 'pinv-2',
     billNo: 'PINV-1404-0089',
+    docstatus: 1,
     supplierName: 'توزیع‌کننده رسمی کویل و کارتریج پارس',
     date: '۱۴۰۴/۰۸/۰۱',
     warehouse: 'انبار شعبه الهیه',
+    branchDimension: 'شعبه الهیه',
+    costCenter: 'فروشگاه و شوروم شعبه الهیه',
     status: 'بدهکار باز',
     totalAmount: 85000000,
+    paidAmount: 25000000,
     landedCostAdded: 2400000,
     itemsSummary: '۲۰۰ بسته کارتریج 0.6 اهم و 0.8 اهم اورجینال',
   },
   {
     id: 'pinv-3',
-    billNo: 'DN-1404-0005',
+    billNo: 'PINV-1404-0090',
+    docstatus: 0,
     supplierName: 'پخش لوازم جانبی آریا',
-    date: '۱۴۰۴/۰۷/۲۹',
+    date: '۱۴۰۴/۰۸/۰۲',
     warehouse: 'انبار مرکزی کهریزک',
-    status: 'برگشت از خرید (یادداشت بدهکاری)',
-    totalAmount: 11200000,
-    landedCostAdded: 0,
-    itemsSummary: 'یادداشت بدهکاری بابت مرجوعی ۱۴ عدد باتری معیوب در قرنطینه ورود',
+    branchDimension: 'انبار مرکزی کهریزک',
+    costCenter: 'انبار مرکزی و لجستیک کهریزک',
+    status: 'پیش‌نویس',
+    totalAmount: 29440000,
+    paidAmount: 0,
+    landedCostAdded: 1440000,
+    itemsSummary: '۶۰ بطری سالت نیکوتین Nasty ۳۰ میل',
+  },
+];
+
+export const INITIAL_JOURNAL_ENTRIES: JournalEntryRecord[] = [
+  {
+    id: 'je-1',
+    voucherNo: 'ACC-JV-1404-0014',
+    postingDate: '۱۴۰۴/۰۸/۰۱',
+    docstatus: 1,
+    title: 'ثبت حقوق و دستمزد و کسورات قانونی مهرماه',
+    branchDimension: 'شعبه مرکزی تهران',
+    totalDebit: 68000000,
+    totalCredit: 68000000,
+    lines: [
+      {
+        id: 'jel-1',
+        accountCode: '5201',
+        accountName: 'هزینه حقوق، دستمزد و پورسانت تیم فروش',
+        partyType: 'پرسنل',
+        partyName: 'لیست حقوق پرسنل شعبه مرکزی',
+        costCenter: 'فروشگاه و شوروم شعبه الهیه',
+        dimensionBranch: 'شعبه مرکزی تهران',
+        debit: 68000000,
+        credit: 0,
+        note: 'هزینه ناخالص حقوق و مزایا',
+      },
+      {
+        id: 'jel-2',
+        accountCode: '2102',
+        accountName: 'مالیات بر ارزش افزوده و کسورات تکلیفی پرداختنی',
+        partyType: '—',
+        partyName: 'سازمان تامین اجتماعی و دارایی',
+        costCenter: 'فروشگاه و شوروم شعبه الهیه',
+        dimensionBranch: 'شعبه مرکزی تهران',
+        debit: 0,
+        credit: 8000000,
+        note: 'کسر بیمه سهم کارگر و مالیات حقوق',
+      },
+      {
+        id: 'jel-3',
+        accountCode: '110101',
+        accountName: 'بانک ملت - شعبه مرکزی (حساب جاری پایا/ساتنا)',
+        partyType: 'پرسنل',
+        partyName: 'واریز گروهی پایا',
+        costCenter: 'فروشگاه و شوروم شعبه الهیه',
+        dimensionBranch: 'شعبه مرکزی تهران',
+        debit: 0,
+        credit: 60000000,
+        note: 'پرداخت خالص حقوق پرسنل',
+      },
+    ],
+  },
+];
+
+export const INITIAL_PAYMENT_ENTRIES: PaymentEntryRecord[] = [
+  {
+    id: 'pay-1',
+    paymentNo: 'ACC-PAY-1404-0041',
+    postingDate: '۱۴۰۴/۰۸/۰۱',
+    docstatus: 1,
+    paymentType: 'دریافت از مشتری (Receive)',
+    partyName: 'پخش سراسری نیکوتین‌پارس (عمده)',
+    modeOfPayment: 'حواله بانکی پایا/ساتنا',
+    bankAccountCode: '110101',
+    referenceVoucherNo: 'SINV-1404-0108',
+    amount: 43500000,
+    branchDimension: 'شعبه مرکزی تهران',
+    costCenter: 'فروشگاه و شوروم شعبه الهیه',
+  },
+  {
+    id: 'pay-2',
+    paymentNo: 'ACC-PAY-1404-0042',
+    postingDate: '۱۴۰۴/۰۸/۰۱',
+    docstatus: 1,
+    paymentType: 'پرداخت به تامین‌کننده (Pay)',
+    partyName: 'توزیع‌کننده رسمی کویل و کارتریج پارس',
+    modeOfPayment: 'حواله بانکی پایا/ساتنا',
+    bankAccountCode: '110101',
+    referenceVoucherNo: 'PINV-1404-0089',
+    amount: 25000000,
+    branchDimension: 'شعبه الهیه',
+    costCenter: 'فروشگاه و شوروم شعبه الهیه',
   },
 ];
 
@@ -547,7 +922,12 @@ export const INITIAL_INVENTORY_ITEMS: InventoryItemRecord[] = [
     nicotine: '۳۵ میلی‌گرم',
     condition: 'آکبند شرکتی',
     isBundle: true,
-    bundleComponents: ['پاد Peak Bar 60000', 'سالت Nasty ۳۰ میل', 'بسته کارتریج XROS'],
+    bundleComponents: ['پاد Peak Bar 60000 (۱×)', 'سالت Nasty ۳۰ میل (۱×)', 'بسته کارتریج XROS (۱×)'],
+    bundleComponentItems: [
+      { sku: 'PK60-MANGO-50', name: 'پاد Peak Bar 60000', qty: 1 },
+      { sku: 'SALT-NASTY-30', name: 'سالت Nasty ۳۰ میل', qty: 1 },
+      { sku: 'COIL-XROS-06', name: 'بسته کارتریج XROS', qty: 1 },
+    ],
     uomPrimary: 'پکیج کامل',
     uomSecondary: 'پکیج کامل',
     conversionFactor: 1,
@@ -672,7 +1052,7 @@ export const INITIAL_AUDIT_LOGS: AuditLogRecord[] = [
     id: 'aud-1',
     timestamp: '۱۴۰۴/۰۸/۰۲ — ۱۴:۱۰',
     user: 'مهندس رضا نوادگان',
-    role: 'مدیر ارشد سیستم (System Manager)',
+    role: 'ادمین کل (Super Admin)',
     docType: 'لیست قیمت همکار (Price List)',
     docId: 'PK60-MANGO-50',
     fieldChanged: 'قیمت عمده (wholesalePrice)',

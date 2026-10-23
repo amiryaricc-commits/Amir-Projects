@@ -157,7 +157,7 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200">
         <div>
           <h2 className="text-xl font-bold text-slate-900">
-            ۴ و ۵. ماژول انبارداری پیشرفته، لجستیک و تدارکات خرید (Stock / WMS & Buying)
+            انبارداری، لجستیک و تدارکات (Stock & WMS)
           </h2>
           <p className="text-sm text-slate-600 mt-1">
             تنوع کالا، ضریب تبدیل چندگانه (Multi-UOM)، پکیج باندل، میانگین موزون، ردیابی سریال و تاریخ انقضا، سرشکن هزینه گمرک و انبارگردانی
@@ -168,10 +168,10 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
       {/* Sub-tabs */}
       <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-200/70 rounded-xl">
         {[
-          { id: 'items', label: 'الف) کالاها، Multi-UOM، باندل و سریال/بچ', icon: Package },
+          { id: 'items', label: 'کالاها، Multi-UOM، باندل و سریال/بچ', icon: Package },
           { id: 'variants', label: 'موتور تولید خودکار تنوع کالا (Item Variants)', icon: Layers },
-          { id: 'movements', label: 'ب) اسناد حرکت انبار، رسید خرید و بارنامه', icon: ArrowLeftRight },
-          { id: 'landed_cost', label: 'ج) سرشکن هزینه‌های جانبی خرید (Landed Cost)', icon: Calculator },
+          { id: 'movements', label: 'اسناد حرکت انبار، رسید خرید و بارنامه', icon: ArrowLeftRight },
+          { id: 'landed_cost', label: 'سرشکن هزینه‌های جانبی خرید (Landed Cost)', icon: Calculator },
           { id: 'reconciliation', label: 'انبارگردانی و نقطه سفارش خودکار (Procurement)', icon: ClipboardCheck },
         ].map((t) => {
           const Icon = t.icon;

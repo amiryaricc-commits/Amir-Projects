@@ -86,7 +86,7 @@ if doc.grand_total > 5000000:
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200">
         <div>
           <h2 className="text-xl font-bold text-slate-900">
-            ۱۱. موتور فریم‌ورک، اتوماسیون و نرم‌افزارساز (Frappe Core & Customization)
+            تنظیمات فریم‌ورک، اتوماسیون و سفارشی‌سازی (Build & Customization)
           </h2>
           <p className="text-sm text-slate-600 mt-1">
             ساخت فیلد و DocType بدون کدنویسی، گردش کار تاییدات، اعلان تلگرام، طراح چاپ، دسترسی سطح فیلد، لاگ امنیتی و وب‌هوک n8n

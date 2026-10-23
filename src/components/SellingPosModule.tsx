@@ -22,6 +22,7 @@ interface SellingPosModuleProps {
   onCompletePosSale: (
     cartItems: { sku: string; name: string; qty: number; unitPrice: number }[],
     netTotal: number,
+    taxAmount: number,
     customerName: string
   ) => void;
   onShowToast: (msg: string) => void;
@@ -135,6 +136,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
         unitPrice: Math.round(c.item.retailPrice * priceListMultiplier),
       })),
       posTotals.netPayable,
+      posTotals.taxAmount,
       selectedCustomer
     );
     setPosShiftTotalSales((s) => s + posTotals.netPayable);
@@ -154,7 +156,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200">
         <div>
           <h2 className="text-xl font-bold text-slate-900">
-            ۲. ماژول فروش، صندوق فروشگاهی لمسی و پورسانت (Selling & Touch POS)
+            صندوق فروشگاهی لمسی و پیش‌فاکتور (Point of Sale & Quotations)
           </h2>
           <p className="text-sm text-slate-600 mt-1">
             پیش‌فاکتور، رزرو موجودی سفارش فروش، صندوق لمسی آفلاین، لیست‌های قیمت چندگانه، موتور پروموشن، باشگاه مشتریان و پورسانت

@@ -88,7 +88,7 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200">
         <div>
           <h2 className="text-xl font-bold text-slate-900">
-            ۳. ماژول مدیریت ارتباط با مشتری و بازاریابی (CRM & Marketing)
+            مدیریت ارتباط با مشتری و بازاریابی (CRM & Marketing)
           </h2>
           <p className="text-sm text-slate-600 mt-1">
             قیف سرنخ‌ها و فرصت‌های فروش، ردیابی کمپین‌های UTM و اینفلوئنسرها، تقویم جلسات، ارزش طول عمر مشتری (CLV) و خبرنامه MTL/DTL

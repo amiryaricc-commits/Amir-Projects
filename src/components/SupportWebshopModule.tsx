@@ -77,7 +77,7 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200">
         <div>
           <h2 className="text-xl font-bold text-slate-900">
-            ۹ و ۱۰. ماژول پشتیبانی، گارانتی، فروشگاه اینترنتی و پورتال مشتریان (Support, Webshop & Portal)
+            پشتیبانی، گارانتی، فروشگاه اینترنتی و پورتال مشتریان (Support & Webshop)
           </h2>
           <p className="text-sm text-slate-600 mt-1">
             فروشگاه آنلاین متصل به موجودی زنده انبار، استعلام سریال گارانتی و تعمیرات، پورتال مشتریان و صفحه‌ساز بدون کدنویسی

@@ -129,10 +129,10 @@ export const AdminAndEnterpriseModule: React.FC<AdminAndEnterpriseModuleProps> =
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200">
         <div>
           <h2 className="text-xl font-bold text-slate-900">
-            مرکز فرماندهی ادمین کل (Super Admin)، ماژول‌های ۶/۷/۸ و ممیزی جامع سامانه «امکان»
+            مدیریت سیستم، منابع انسانی، تولید (BOM) و کنترل دسترسی (System & Enterprise)
           </h2>
           <p className="text-sm text-slate-600 mt-1">
-            مدیریت دسترسی‌های ادمین کل در سطح کل سامانه، منابع انسانی و حقوق (۶)، تولید و BOM (۷)، پروژه (۸) و گزارش تحلیل فنی
+            مدیریت دسترسی‌های سطح نقش (RBAC)، منابع انسانی و حقوق و دستمزد، فرمول ساخت و تولید (BOM)، مدیریت پروژه و ممیزی سلامت سیستم
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -170,9 +170,9 @@ export const AdminAndEnterpriseModule: React.FC<AdminAndEnterpriseModuleProps> =
       {/* Sub-tabs */}
       <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-200/70 rounded-xl">
         {[
-          { id: 'super_admin', label: 'دسترسی ادمین کل و ماتریس امنیت (Super Admin RBAC)', icon: ShieldAlert },
-          { id: 'hr_bom_proj', label: 'ماژول‌های ۶، ۷ و ۸ (منابع انسانی، تولید BOM و پروژه‌ها)', icon: Factory },
-          { id: 'audit_roadmap', label: 'گزارش کارشناسی کم و کسر و سلامت مسیرها (System Audit)', icon: FileCheck2 },
+          { id: 'super_admin', label: 'کنترل دسترسی نقش‌ها و امنیت (Role Permissions)', icon: ShieldAlert },
+          { id: 'hr_bom_proj', label: 'منابع انسانی، تولید (BOM) و پروژه‌ها', icon: Factory },
+          { id: 'audit_roadmap', label: 'ممیزی سلامت سیستم و یکپارچگی دفاتر (System Audit)', icon: FileCheck2 },
         ].map((t) => {
           const Icon = t.icon;
           return (

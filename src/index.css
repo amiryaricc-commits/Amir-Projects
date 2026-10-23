@@ -9,6 +9,12 @@
   body, button, input, select, textarea {
     font-family: 'Vazir', 'Vazirmatn', system-ui, -apple-system, sans-serif;
     direction: rtl;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background-color: #fafafa;
+    color: #111827;
   }
 }
 
@@ -22,3 +28,4 @@
     display: none !important;
   }
 }
+

@@ -13,7 +13,11 @@ import {
   checkRolePermission,
   calculateFinancialStatements,
   postDoubleEntryToAccounts,
+  computeMultiLineInvoiceTotals,
+  computeTrialBalance6Col,
+  deductStockWithBundles,
 } from './erpEngine';
+import { INITIAL_ACCOUNTS, INITIAL_GL_ENTRIES, INITIAL_INVENTORY_ITEMS } from '../data/erpSeedData';
 
 test('validateJournalEntry enforces double-entry debit === credit rule', () => {
   const balanced = validateJournalEntry([
@@ -59,7 +63,6 @@ test('allocateLandedCost distributes customs and freight proportionally', () => 
     1600000,
     'amount'
   );
-  // Both lines have base total 8,000,000, so each gets 800,000 landed cost
   assert.equal(allocated[0].allocatedLandedCost, 800000);
   assert.equal(allocated[0].finalUnitCost, 880000);
   assert.equal(allocated[1].allocatedLandedCost, 800000);
@@ -87,7 +90,7 @@ test('calculatePosCartTotals handles stepped discount, loyalty, tax and commissi
     items: [{ price: 1000000, qty: 5, category: 'دستگاه' }],
     priceListMultiplier: 1,
     couponPercent: 10,
-    redeemLoyaltyPoints: 100, // 100,000 Toman
+    redeemLoyaltyPoints: 100,
     taxPercent: 10,
     partnerCommissionPercent: 5,
   });
@@ -158,5 +161,45 @@ test('postDoubleEntryToAccounts rolls up leaf debit/credit changes to parent gro
   const st = calculateFinancialStatements(updated);
   assert.equal(st.isBalanceSheetBalanced, true);
 });
+
+test('computeMultiLineInvoiceTotals computes multi-line net, 10% VAT and grandTotal', () => {
+  const res = computeMultiLineInvoiceTotals([
+    { id: '1', sku: 'A', itemName: 'Item A', uom: 'عدد', qty: 2, unitPrice: 1000000, discountPercent: 10, netLineAmount: 1800000 },
+    { id: '2', sku: 'B', itemName: 'Item B', uom: 'عدد', qty: 1, unitPrice: 500000, discountPercent: 0, netLineAmount: 500000 },
+  ]);
+  assert.equal(res.netBeforeTax, 2300000);
+  assert.equal(res.taxAmount, 230000);
+  assert.equal(res.grandTotal, 2530000);
+});
+
+test('computeTrialBalance6Col produces balanced 6-column trial balance for گروه/کل/معین', () => {
+  for (const level of ['گروه', 'کل', 'معین'] as const) {
+    const tb = computeTrialBalance6Col(INITIAL_ACCOUNTS, level, INITIAL_GL_ENTRIES, 'همه شعب');
+    assert.equal(tb.totals.isBalanced, true, `Trial balance must be balanced at level ${level}`);
+    assert.equal(tb.totals.closingDebit, tb.totals.closingCredit);
+  }
+});
+
+test('deductStockWithBundles dynamically deducts bundle component items and computes COGS', () => {
+  const bundleBefore = INITIAL_INVENTORY_ITEMS.find((i) => i.sku === 'BND-STARTER-PRO')!;
+  const mangoBefore = INITIAL_INVENTORY_ITEMS.find((i) => i.sku === 'PK60-MANGO-50')!;
+  const saltBefore = INITIAL_INVENTORY_ITEMS.find((i) => i.sku === 'SALT-NASTY-30')!;
+  const coilBefore = INITIAL_INVENTORY_ITEMS.find((i) => i.sku === 'COIL-XROS-06')!;
+
+  const res = deductStockWithBundles(INITIAL_INVENTORY_ITEMS, [
+    { sku: 'BND-STARTER-PRO', qty: 2 },
+  ]);
+  const bundleAfter = res.updatedItems.find((i) => i.sku === 'BND-STARTER-PRO')!;
+  const mangoAfter = res.updatedItems.find((i) => i.sku === 'PK60-MANGO-50')!;
+  const saltAfter = res.updatedItems.find((i) => i.sku === 'SALT-NASTY-30')!;
+  const coilAfter = res.updatedItems.find((i) => i.sku === 'COIL-XROS-06')!;
+
+  assert.equal(bundleAfter.stockQty, bundleBefore.stockQty - 2);
+  assert.equal(mangoAfter.stockQty, mangoBefore.stockQty - 2);
+  assert.equal(saltAfter.stockQty, saltBefore.stockQty - 2);
+  assert.equal(coilAfter.stockQty, coilBefore.stockQty - 2);
+  assert.ok(res.totalCogs > 0);
+});
+
 
 
