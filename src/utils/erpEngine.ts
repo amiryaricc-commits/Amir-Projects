@@ -415,6 +415,54 @@ export function checkRolePermission(
   }
 }
 
+export function formatRoleName(role: string): string {
+  switch (role) {
+    case 'ادمین کل (Super Admin)':
+      return 'مدیر کل سامانه';
+    case 'مدیر مالی (Accounts Manager)':
+      return 'مدیر مالی و حسابداری';
+    case 'سرپرست انبار (Stock Manager)':
+      return 'سرپرست انبار و تدارکات';
+    case 'صندوقدار POS':
+      return 'صندوقدار فروشگاه';
+    default:
+      return stripEnglishTerms(role);
+  }
+}
+
+export function formatVoucherType(vt: string): string {
+  switch (vt) {
+    case 'Sales Invoice':
+      return 'فاکتور فروش';
+    case 'Purchase Invoice':
+      return 'فاکتور خرید';
+    case 'Journal Entry':
+      return 'سند روزنامه';
+    case 'Payment Entry':
+      return 'سند دریافت و پرداخت';
+    case 'POS Invoice':
+      return 'فیش صندوق فروشگاهی';
+    default:
+      return stripEnglishTerms(vt);
+  }
+}
+
+export function stripEnglishTerms(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/\s*\([A-Za-z0-9 &/\-_.·]+\)/g, '')
+    .replace(/\bPOS\b/g, 'فروشگاهی')
+    .replace(/\bMTL\b/g, 'معمولی')
+    .replace(/\bDTL\b/g, 'حرفه‌ای')
+    .replace(/\bB2B\b/g, 'عمده')
+    .replace(/\bBOM\b/g, 'فرمول تولید')
+    .replace(/\bCRM\b/g, 'مشتریان')
+    .replace(/\bCOGS\b/g, 'بهای تمام‌شده')
+    .replace(/\bGL\b/g, 'دفتر کل')
+    .trim();
+}
+
+
 export function calculateFinancialStatements(
   accounts: { category: 'دارایی' | 'بدهی' | 'سرمایه' | 'درآمد' | 'هزینه'; level: string; balance: number }[]
 ): {

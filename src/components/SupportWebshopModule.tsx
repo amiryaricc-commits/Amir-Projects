@@ -4,10 +4,6 @@ import {
   Globe,
   UserCheck,
   FileEdit,
-  Search,
-  ShoppingCart,
-  CheckCircle2,
-  Plus,
 } from 'lucide-react';
 import { InventoryItemRecord, WarrantyTicketRecord, SalesInvoiceRecord } from '../data/erpSeedData';
 import { formatCurrency } from '../utils/erpEngine';
@@ -25,7 +21,6 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
   inventoryItems,
   warrantyTickets,
   onAddWarrantyTicket,
-  salesInvoices,
   onWebshopOrderCheckout,
   onShowToast,
 }) => {
@@ -60,7 +55,7 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
       ticketNo: `SUP-1404-0${43 + warrantyTickets.length}`,
       serialNo: serialQuery || 'SN-PK60-99102',
       customerName: newClaimCustomer.trim(),
-      itemName: matchedSerialItem?.name || 'پاد هوشمند Peak Bar 60000',
+      itemName: matchedSerialItem?.name || 'پاد هوشمند پیک‌بار ۶۰۰۰۰',
       issueDescription: newClaimIssue.trim(),
       warrantyExpiry: '۱۴۰۵/۰۶/۳۰',
       status: 'پذیرش در تعمیرگاه',
@@ -77,7 +72,7 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200">
         <div>
           <h2 className="text-xl font-bold text-slate-900">
-            پشتیبانی، گارانتی، فروشگاه اینترنتی و پورتال مشتریان (Support & Webshop)
+            پشتیبانی، گارانتی، فروشگاه اینترنتی و پورتال مشتریان
           </h2>
           <p className="text-sm text-slate-600 mt-1">
             فروشگاه آنلاین متصل به موجودی زنده انبار، استعلام سریال گارانتی و تعمیرات، پورتال مشتریان و صفحه‌ساز بدون کدنویسی
@@ -88,10 +83,10 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
       {/* Sub-tabs */}
       <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-200/70 rounded-xl">
         {[
-          { id: 'webshop', label: 'فروشگاه آنلاین یکپارچه (Built-in Webshop)', icon: Globe },
+          { id: 'webshop', label: 'فروشگاه آنلاین یکپارچه', icon: Globe },
           { id: 'warranty', label: 'پشتیبانی، استعلام سریال گارانتی و تعمیرات', icon: Wrench },
           { id: 'portal', label: 'پورتال اختصاصی مشتریان و تامین‌کنندگان', icon: UserCheck },
-          { id: 'builder', label: 'صفحه‌ساز، وبلاگ سئو و فرم‌های تحت وب (Web Forms)', icon: FileEdit },
+          { id: 'builder', label: 'صفحه‌ساز، وبلاگ سئو و فرم‌های تحت وب', icon: FileEdit },
         ].map((t) => {
           const Icon = t.icon;
           return (
@@ -118,14 +113,14 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                ویترین فروشگاه اینترنتی متصل به موجودی لحظه‌ای انبار ERP
+                ویترین فروشگاه اینترنتی متصل به موجودی لحظه‌ای انبار
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 هر خرید در سایت فروشگاهی مستقیماً فاکتور فروش صادر کرده و از موجودی انبار کسر می‌کند.
               </p>
             </div>
             <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
-              {['همه', 'Peak Bar', 'Nasty Juice', 'Vaporesso', 'Emkan Bundle'].map((b) => (
+              {['همه', 'پیک‌بار', 'نستی جویس', 'واپورسو', 'پکیج امکان'].map((b) => (
                 <button
                   key={b}
                   type="button"
@@ -169,7 +164,7 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
                     onClick={() => onWebshopOrderCheckout(item)}
                     className="px-3.5 py-2 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 whitespace-nowrap"
                   >
-                    خرید آنلاین و ثبت سفارش ERP
+                    خرید آنلاین و ثبت سفارش
                   </button>
                 </div>
               </div>
@@ -184,7 +179,7 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
           <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                استعلام اصالت و گارانتی بر اساس شماره سریال یکتا (Serial Tracking)
+                استعلام اصالت و گارانتی بر اساس شماره سریال یکتا
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 بررسی تاریخ انقضای گارانتی هر سریال و ثبت پذیرش تعمیرگاه یا تعویض دستگاه
@@ -206,7 +201,7 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
               {matchedSerialItem ? (
                 <>
                   <div className="font-bold text-emerald-800">
-                    ✓ سریال معتبر در دیتابیس انبار یافت شد: {matchedSerialItem.name}
+                    ✓ سریال معتبر در پایگاه داده انبار یافت شد: {matchedSerialItem.name}
                   </div>
                   <div className="text-slate-600">
                     سری ساخت: {matchedSerialItem.batchNo} · وضعیت گارانتی شرکتی: فعال تا ۱۴۰۵/۰۶/۳۰
@@ -255,7 +250,7 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
 
           <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
             <h3 className="text-base font-bold text-slate-900">
-              پرونده‌های فعال گارانتی و تعمیرات (Warranty & Maintenance Tickets)
+              پرونده‌های فعال گارانتی و تعمیرات
             </h3>
             <div className="space-y-3 text-xs">
               {warrantyTickets.map((t) => (
@@ -288,10 +283,10 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
         <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
           <div>
             <h3 className="text-base font-bold text-slate-900">
-              پورتال اختصاصی مشتریان و تامین‌کنندگان (Customer / Supplier Self-Service Portal)
+              پورتال اختصاصی مشتریان و تامین‌کنندگان
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              نمای پنل مشتری پس از لاگین: مشاهده سوابق فاکتورها، اقساط باقی‌مانده و کد رهگیری مرسوله پستی/تیپاکس
+              نمای پنل مشتری پس از ورود: مشاهده سوابق فاکتورها، اقساط باقی‌مانده و کد رهگیری مرسوله پستی و تیپاکس
             </p>
           </div>
 
@@ -299,7 +294,7 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
               <div className="text-slate-500">حساب کاربری متصل در پورتال</div>
               <div className="font-bold text-slate-900 text-sm mt-1">
-                پخش سراسری نیکوتین‌پارس (مشتری VIP)
+                پخش سراسری نیکوتین‌پارس (مشتری ویژه)
               </div>
               <div className="text-indigo-700 mt-1">سطح باشگاه: طلایی · ۱,۴۵۰ امتیاز</div>
             </div>
@@ -313,7 +308,7 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
               <div className="text-slate-500">وضعیت آخرین مرسوله ارسالی</div>
               <div className="font-bold text-emerald-700 text-sm mt-1">
-                تحویل به تیپاکس (کد رهگیری: TPX-8849201)
+                تحویل به تیپاکس (کد رهگیری: ۸۸۴۹۲۰۱)
               </div>
               <div className="text-slate-500 mt-1">بسته‌بندی تاییدشده توسط انبار کهریزک</div>
             </div>
@@ -326,29 +321,29 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
             <h3 className="text-base font-bold text-slate-900">
-              صفحه‌ساز بدون کدنویسی و مقالات سئو (Web Page Builder & SEO Blog)
+              صفحه‌ساز بدون کدنویسی و مقالات سئو
             </h3>
             <div className="space-y-2.5 text-xs">
               {[
                 {
-                  page: 'لندینگ‌پیج جشنواره پاییزه پاد Peak Bar 60000',
-                  slug: '/landing/peak-bar-60000',
-                  seoScore: 'سئو کامل (Schema.org Product JSON-LD فعال)',
+                  page: 'صفحه فرود جشنواره پاییزه پاد پیک‌بار ۶۰۰۰۰',
+                  slug: 'مسیر صفحه: جشنواره پاییزه پیک‌بار',
+                  seoScore: 'سئو کامل (داده‌های ساختاریافته محصول فعال)',
                 },
                 {
-                  page: 'مقاله وبلاگ: تفاوت تخصصی جویس (DTL) و سالت نیکوتین (MTL)',
-                  slug: '/blog/mtl-vs-dtl-complete-guide',
-                  seoScore: 'رتبه ۱ گوگل · ۴,۲۰۰ بازدید ماهانه',
+                  page: 'مقاله وبلاگ: تفاوت تخصصی جویس و سالت نیکوتین',
+                  slug: 'مسیر صفحه: راهنمای جامع خرید پاد و سالت',
+                  seoScore: 'رتبه ۱ موتورهای جستجو · ۴,۲۰۰ بازدید ماهانه',
                 },
                 {
                   page: 'صفحه استعلام آنلاین اصالت کالا و سریال گارانتی',
-                  slug: '/warranty-check',
-                  seoScore: 'متصل به جدول Serial Number انبار',
+                  slug: 'مسیر صفحه: استعلام آنلاین اصالت و گارانتی',
+                  seoScore: 'متصل به جدول سریال‌های انبار مرکزی',
                 },
               ].map((pg) => (
-                <div key={pg.slug} className="p-3.5 rounded-lg border border-slate-200 space-y-1">
+                <div key={pg.page} className="p-3.5 rounded-lg border border-slate-200 space-y-1">
                   <div className="font-bold text-slate-900">{pg.page}</div>
-                  <div className="font-mono text-indigo-700">{pg.slug}</div>
+                  <div className="text-indigo-700">{pg.slug}</div>
                   <div className="text-slate-500">{pg.seoScore}</div>
                 </div>
               ))}
@@ -358,7 +353,7 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
           <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                فرم‌های تحت وب متصل به دیتابیس ERP (Web Forms)
+                فرم‌های تحت وب متصل به پایگاه داده سامانه
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 فرم آنلاین «درخواست اخذ نمایندگی فروش و همکاری عمده» (تعداد فرم‌های دریافتی: {submittedWebFormsCount})
@@ -371,7 +366,7 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
                 setSubmittedWebFormsCount((c) => c + 1);
                 setAgencyApplicant('');
                 setAgencyCity('');
-                onShowToast('فرم آنلاین درخواست نمایندگی مستقیماً در جدول سرنخ‌های ERP ثبت شد.');
+                onShowToast('فرم آنلاین درخواست نمایندگی مستقیماً در جدول سرنخ‌های فروش ثبت شد.');
               }}
               className="space-y-3 text-xs"
             >
@@ -401,7 +396,7 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
                 type="submit"
                 className="px-4 py-2 font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
               >
-                ارسال فرم آنلاین به هسته ERP
+                ارسال فرم آنلاین به هسته سامانه
               </button>
             </form>
           </div>

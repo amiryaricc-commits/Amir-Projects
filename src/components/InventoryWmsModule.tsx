@@ -39,7 +39,7 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
   >('items');
 
   // Variant Generator State
-  const [templateName, setTemplateName] = useState('پاد هوشمند Peak Bar 60000');
+  const [templateName, setTemplateName] = useState('پاد هوشمند پیک‌بار ۶۰۰۰۰');
   const [templateSku, setTemplateSku] = useState('PK60-PRO');
   const [flavorsInput, setFlavorsInput] = useState('انبه یخ, هندوانه توت‌فرنگی, نعناع قطبی');
   const [nicotinesInput, setNicotinesInput] = useState('۲۰ میلی‌گرم, ۵۰ میلی‌گرم');
@@ -49,27 +49,27 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
     {
       id: 'se-1',
       entryNo: 'STE-1404-0210',
-      type: 'انتقال بین انبارها (Material Transfer)',
+      type: 'انتقال بین انبارها',
       fromWarehouse: 'انبار مرکزی کهریزک',
       toWarehouse: 'انبار شعبه الهیه',
-      itemSummary: '۵۰ عدد پاد Peak Bar 60000 + ۲۰ بسته کارتریج',
-      packingWeight: 'وزن خالص: ۸.۴ کیلوگرم · وزن ناخالص کارتن: ۹.۱ کیلوگرم (Packing Slip #PS-92)',
+      itemSummary: '۵۰ عدد پاد پیک‌بار ۶۰۰۰۰ + ۲۰ بسته کارتریج',
+      packingWeight: 'وزن خالص: ۸.۴ کیلوگرم · وزن ناخالص کارتن: ۹.۱ کیلوگرم (بارنامه شماره ۹۲)',
       date: '۱۴۰۴/۰۸/۰۱',
     },
     {
       id: 'se-2',
       entryNo: 'STE-1404-0211',
-      type: 'مصرف داخلی و سمپل تستر (Material Issue)',
+      type: 'مصرف داخلی و سمپل تستر',
       fromWarehouse: 'انبار شعبه الهیه',
       toWarehouse: 'استند تستر شوروم',
-      itemSummary: '۴ عدد سالت Nasty ۳۰ میل جهت تست حضوری مشتریان',
+      itemSummary: '۴ عدد سالت نستی ۳۰ میل جهت تست حضوری مشتریان',
       packingWeight: 'تحویل به سرپرست شوروم',
       date: '۱۴۰۴/۰۸/۰۲',
     },
     {
       id: 'se-3',
       entryNo: 'PREC-1404-0088',
-      type: 'رسید ورود کالا و قرنطینه کیفیت (Purchase Receipt)',
+      type: 'رسید ورود کالا و قرنطینه کیفیت',
       fromWarehouse: 'تامین‌کننده وارداتی',
       toWarehouse: 'انبار مرکزی کهریزک',
       itemSummary: 'ورود ۵۰۰ عدد دستگاه: ۴۹۶ عدد سالم تاییدشده · ۴ عدد معیوب برگشتی',
@@ -92,11 +92,11 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
       id: 'mr-1',
       reqNo: 'MREQ-1404-0091',
       sku: 'PK60-BLUE-20',
-      itemName: 'پاد Peak Bar 60000 — بلوبری تمشک',
+      itemName: 'پاد پیک‌بار ۶۰۰۰۰ — بلوبری تمشک',
       currentStock: 18,
       reorderPoint: 25,
       suggestedOrderQty: 50,
-      triggerType: 'تولید خودکار توسط نقطه سفارش (Auto Re-order)',
+      triggerType: 'تولید خودکار توسط نقطه سفارش',
       status: 'ارسال‌شده به واحد تدارکات و خرید',
     },
   ]);
@@ -106,21 +106,21 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
     [
       {
         itemCode: 'PK60-MANGO-50',
-        itemName: 'پاد Peak Bar 60000 — انبه یخ',
+        itemName: 'پاد پیک‌بار ۶۰۰۰۰ — انبه یخ',
         qty: 100,
         weightGrams: 95,
         unitCost: 750000,
       },
       {
         itemCode: 'SALT-NASTY-30',
-        itemName: 'سالت اورجینال Nasty ۳۰ میل',
+        itemName: 'سالت اورجینال نستی ۳۰ میل',
         qty: 150,
         weightGrams: 55,
         unitCost: 420000,
       },
       {
         itemCode: 'COIL-XROS-06',
-        itemName: 'بسته کارتریج XROS 0.6',
+        itemName: 'بسته کارتریج اکس‌راس ۰.۶ اهم',
         qty: 80,
         weightGrams: 40,
         unitCost: 480000,
@@ -157,10 +157,10 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200">
         <div>
           <h2 className="text-xl font-bold text-slate-900">
-            انبارداری، لجستیک و تدارکات (Stock & WMS)
+            انبارداری، لجستیک و تدارکات
           </h2>
           <p className="text-sm text-slate-600 mt-1">
-            تنوع کالا، ضریب تبدیل چندگانه (Multi-UOM)، پکیج باندل، میانگین موزون، ردیابی سریال و تاریخ انقضا، سرشکن هزینه گمرک و انبارگردانی
+            تنوع کالا، ضریب تبدیل چندگانه، پکیج باندل، میانگین موزون، ردیابی سریال و تاریخ انقضا، سرشکن هزینه گمرک و انبارگردانی
           </p>
         </div>
       </div>
@@ -168,11 +168,11 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
       {/* Sub-tabs */}
       <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-200/70 rounded-xl">
         {[
-          { id: 'items', label: 'کالاها، Multi-UOM، باندل و سریال/بچ', icon: Package },
-          { id: 'variants', label: 'موتور تولید خودکار تنوع کالا (Item Variants)', icon: Layers },
+          { id: 'items', label: 'کالاها، واحدهای شمارش، باندل و سریال', icon: Package },
+          { id: 'variants', label: 'موتور تولید خودکار تنوع کالا', icon: Layers },
           { id: 'movements', label: 'اسناد حرکت انبار، رسید خرید و بارنامه', icon: ArrowLeftRight },
-          { id: 'landed_cost', label: 'سرشکن هزینه‌های جانبی خرید (Landed Cost)', icon: Calculator },
-          { id: 'reconciliation', label: 'انبارگردانی و نقطه سفارش خودکار (Procurement)', icon: ClipboardCheck },
+          { id: 'landed_cost', label: 'سرشکن هزینه‌های جانبی خرید', icon: Calculator },
+          { id: 'reconciliation', label: 'انبارگردانی و نقطه سفارش خودکار', icon: ClipboardCheck },
         ].map((t) => {
           const Icon = t.icon;
           return (
@@ -198,17 +198,17 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
         <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
           <div>
             <h3 className="text-base font-bold text-slate-900">
-              دفتر کل موجودی کالا، ضرایب تبدیل چندگانه (Multi-UOM)، پکیج‌های باندل و ردیابی سریال/انقضا
+              دفتر کل موجودی کالا، ضرایب تبدیل چندگانه، پکیج‌های باندل و ردیابی سریال و انقضا
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              محاسبه لحظه‌ای ارزش انبار به روش «میانگین موزون متحرک (Moving Average)» و هشدار کالاهای زیر نقطه سفارش
+              محاسبه لحظه‌ای ارزش انبار به روش «میانگین موزون متحرک» و هشدار کالاهای زیر نقطه سفارش
             </p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-right text-xs border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
-                  <th className="py-2.5 px-3">کد SKU · سری ساخت</th>
+                  <th className="py-2.5 px-3">کد کالا · سری ساخت</th>
                   <th className="py-2.5 px-3">نام کالا / پکیج باندل</th>
                   <th className="py-2.5 px-3">واحد شمارش و ضریب تبدیل</th>
                   <th className="py-2.5 px-3">سریال‌ها و تاریخ انقضا</th>
@@ -224,7 +224,7 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
                     <tr key={item.id} className="hover:bg-slate-50">
                       <td className="py-2.5 px-3 font-mono">
                         <div className="font-semibold text-slate-900">{item.sku}</div>
-                        <div className="text-slate-500">Batch: {item.batchNo}</div>
+                        <div className="text-slate-500">سری ساخت: {item.batchNo}</div>
                       </td>
                       <td className="py-2.5 px-3">
                         <div className="font-bold text-slate-900">{item.name}</div>
@@ -289,16 +289,16 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
         <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
           <div>
             <h3 className="text-base font-bold text-slate-900">
-              تولید خودکار زیرکالاها از کالای مادر (Item Variants & Attributes Matrix)
+              تولید خودکار زیرکالاها از کالای مادر بر اساس ماتریس ویژگی‌ها
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              تعریف یک کالای مادر و ساخت خودکار تمامی زیرکالاها بر اساس ماتریس ویژگی‌ها (طعم، نیکوتین، رنگ، وضعیت آکبند/کارکرده)
+              تعریف یک کالای مادر و ساخت خودکار تمامی زیرکالاها بر اساس ویژگی‌ها (طعم، نیکوتین، رنگ، وضعیت آکبند/کارکرده)
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
             <div>
-              <label className="block font-medium text-slate-700 mb-1">نام کالای مادر (Template)</label>
+              <label className="block font-medium text-slate-700 mb-1">نام کالای مادر</label>
               <input
                 type="text"
                 value={templateName}
@@ -307,7 +307,7 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
               />
             </div>
             <div>
-              <label className="block font-medium text-slate-700 mb-1">پیشوند کد SKU</label>
+              <label className="block font-medium text-slate-700 mb-1">پیشوند کد کالا</label>
               <input
                 type="text"
                 value={templateSku}
@@ -348,7 +348,7 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
                     sku: v.sku,
                     name: v.variantName,
                     category: 'دستگاه پاد و ماد',
-                    brand: 'Peak Bar',
+                    brand: 'پیک‌بار',
                     flavor: v.flavor,
                     nicotine: v.nicotine,
                     condition: 'آکبند شرکتی',
@@ -392,10 +392,10 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                اسناد حرکت انبار (Stock Entry)، رسید کنترل کیفیت ورود کالا (Purchase Receipt) و بارنامه (Packing Slip)
+                اسناد حرکت انبار، رسید کنترل کیفیت ورود کالا و بارنامه
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                انتقال بین انبارها، مصرف داخلی و تستر، بسته‌بندی مجدد (Repack) و ثبت وزن خالص/ناخالص کارتن‌ها
+                انتقال بین انبارها، مصرف داخلی و تستر، بسته‌بندی مجدد و ثبت وزن خالص و ناخالص کارتن‌ها
               </p>
             </div>
             <button
@@ -405,7 +405,7 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
                   {
                     id: `se-${Date.now()}`,
                     entryNo: `STE-1404-${212 + stockEntries.length}`,
-                    type: 'بسته‌بندی مجدد پکیج (Repack / Bundle)',
+                    type: 'بسته‌بندی مجدد پکیج',
                     fromWarehouse: 'انبار مرکزی کهریزک',
                     toWarehouse: 'انبار فروش آنلاین',
                     itemSummary: 'تولید ۲۰ پکیج استارتر از کالاهای منفرد انبار',
@@ -414,7 +414,7 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
                   },
                   ...stockEntries,
                 ]);
-                onShowToast('سند حرکت انبار و بارنامه (Packing Slip) جدید صادر شد.');
+                onShowToast('سند حرکت انبار و بارنامه جدید صادر شد.');
               }}
               className="px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 whitespace-nowrap"
             >
@@ -451,7 +451,7 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
         <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-5">
           <div>
             <h3 className="text-base font-bold text-slate-900">
-              سرشکن کردن هزینه‌های جانبی خرید روی بهای تمام‌شده کالا (Landed Cost Voucher)
+              سرشکن کردن هزینه‌های جانبی خرید روی بهای تمام‌شده کالا
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
               تقسیم خودکار هزینه گمرک، باربری، تیپاکس و بیمه روی تک‌تک کالاهای فاکتور خرید بر اساس مبلغ، تعداد یا وزن
@@ -545,7 +545,7 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
           <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                انبارگردانی و تعدیل موجودی فیزیکی قفسه‌ها (Stock Reconciliation)
+                انبارگردانی و تعدیل موجودی فیزیکی قفسه‌ها
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 مقایسه شمارش فیزیکی انبارگردانی با موجودی سیستم و صدور خودکار سند مالی کسری یا اضافات انبار
@@ -570,7 +570,7 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
               </div>
               <div>
                 <label className="block font-medium text-slate-700 mb-1">
-                  شمارش فیزیکی قفسه (Physical Qty)
+                  شمارش فیزیکی قفسه
                 </label>
                 <input
                   type="number"
@@ -639,10 +639,10 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
           <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                درخواست مواد و کالا و نقطه سفارش خودکار (Material Request & Auto Re-order)
+                درخواست مواد و کالا و نقطه سفارش خودکار
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                به محض رسیدن موجودی کالا به حداقل مجاز (Re-order Level)، سیستم خودکار درخواست خرید صادر می‌کند.
+                به محض رسیدن موجودی کالا به حداقل مجاز، سیستم خودکار درخواست خرید صادر می‌کند.
               </p>
             </div>
             <div className="space-y-3 text-xs">

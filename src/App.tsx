@@ -56,6 +56,7 @@ import {
   postDoubleEntryToAccounts,
   deductStockWithBundles,
   DEFAULT_VAT_PERCENT,
+  formatRoleName,
 } from './utils/erpEngine';
 import { AccountingModule, AccountingSubTab } from './components/AccountingModule';
 import { SellingPosModule } from './components/SellingPosModule';
@@ -77,7 +78,7 @@ type ActiveModuleId =
   | 'frappe_core'
   | 'admin_enterprise';
 
-const STORAGE_KEY = 'emkan_erp_state_v3';
+const STORAGE_KEY = 'emkan_erp_state_v4';
 
 function loadPersisted<T>(field: string, fallback: T): T {
   try {
@@ -1093,21 +1094,21 @@ export default function App() {
   const totalCashAndBank =
     accounts.find((a) => a.code === '1101')?.balance || 1420000000;
 
-  // ERPNext Standard Sidebar Workspaces (No numbering prefixes)
+  // Sidebar Workspaces (100% Persian)
   const sidebarItems: {
     id: ActiveModuleId;
     label: string;
     icon: React.ElementType;
   }[] = [
-    { id: 'dashboard', label: 'میزکار (Home)', icon: LayoutGrid },
-    { id: 'accounting', label: 'حسابداری (Accounting)', icon: Calculator },
-    { id: 'selling_workspace', label: 'فروش (Selling)', icon: FileText },
-    { id: 'buying_workspace', label: 'خرید (Buying)', icon: ShoppingCart },
-    { id: 'inventory', label: 'انبار (Stock)', icon: Package },
-    { id: 'selling_pos', label: 'صندوق فروشگاهی (POS)', icon: ShoppingBag },
-    { id: 'crm', label: 'ارتباط با مشتری (CRM)', icon: Users },
-    { id: 'support_webshop', label: 'پشتیبانی و وب‌شاپ', icon: Globe },
-    { id: 'frappe_core', label: 'تنظیمات و ابزارها (Build)', icon: Sliders },
+    { id: 'dashboard', label: 'میزکار', icon: LayoutGrid },
+    { id: 'accounting', label: 'حسابداری و مالی', icon: Calculator },
+    { id: 'selling_workspace', label: 'فروش و فاکتورها', icon: FileText },
+    { id: 'buying_workspace', label: 'تدارکات و خرید', icon: ShoppingCart },
+    { id: 'inventory', label: 'انبار و کالاها', icon: Package },
+    { id: 'selling_pos', label: 'صندوق فروشگاهی', icon: ShoppingBag },
+    { id: 'crm', label: 'ارتباط با مشتریان', icon: Users },
+    { id: 'support_webshop', label: 'پشتیبانی و فروشگاه آنلاین', icon: Globe },
+    { id: 'frappe_core', label: 'تنظیمات و فرم‌ساز', icon: Sliders },
     { id: 'admin_enterprise', label: 'مدیریت سیستم و منابع انسانی', icon: ShieldAlert },
   ];
 
@@ -1126,22 +1127,22 @@ export default function App() {
     sidebarItems.find((s) => s.id === activeModule)?.label || 'میزکار';
 
   const allDocTypesCatalog = [
-    { title: 'درخت حساب‌ها (Chart of Accounts)', mod: 'accounting' as ActiveModuleId, sub: 'coa' as AccountingSubTab, cat: 'حسابداری' },
-    { title: 'دفتر کل و تراز آزمایشی ۶ ستونی (GL & Trial Balance)', mod: 'accounting' as ActiveModuleId, sub: 'gl_trial' as AccountingSubTab, cat: 'حسابداری' },
-    { title: 'صورت سود و زیان و ترازنامه (Financial Statements)', mod: 'accounting' as ActiveModuleId, sub: 'statements' as AccountingSubTab, cat: 'حسابداری' },
-    { title: 'سند حسابداری روزنامه (Journal Entry)', mod: 'accounting' as ActiveModuleId, sub: 'journal' as AccountingSubTab, cat: 'حسابداری' },
-    { title: 'فاکتور فروش چندردیفه و اقساط (Sales Invoice)', mod: 'selling_workspace' as ActiveModuleId, sub: 'sales_invoice' as AccountingSubTab, cat: 'فروش' },
-    { title: 'فاکتور خرید و میانگین موزون (Purchase Invoice)', mod: 'buying_workspace' as ActiveModuleId, sub: 'purchase_invoice' as AccountingSubTab, cat: 'خرید' },
-    { title: 'دریافت و پرداخت و چک صیادی (Payment Entry)', mod: 'accounting' as ActiveModuleId, sub: 'payment_cheques' as AccountingSubTab, cat: 'خزانه‌داری' },
-    { title: 'مراکز هزینه و بودجه (Cost Centers & Budget)', mod: 'accounting' as ActiveModuleId, sub: 'budget' as AccountingSubTab, cat: 'بودجه' },
-    { title: 'دارایی‌های ثابت و استهلاک (Fixed Assets)', mod: 'accounting' as ActiveModuleId, sub: 'assets' as AccountingSubTab, cat: 'اموال' },
-    { title: 'صندوق فروشگاهی لمسی و آفلاین (POS)', mod: 'selling_pos' as ActiveModuleId, cat: 'صندوق POS' },
-    { title: 'سرنخ‌ها و فرصت‌های فروش (CRM Pipeline)', mod: 'crm' as ActiveModuleId, cat: 'CRM' },
-    { title: 'کالاها، Multi-UOM و پکیج باندل (Stock Items)', mod: 'inventory' as ActiveModuleId, cat: 'انبار' },
-    { title: 'سرشکن هزینه‌های گمرک و خرید (Landed Cost Voucher)', mod: 'inventory' as ActiveModuleId, cat: 'انبار' },
-    { title: 'فروشگاه آنلاین یکپارچه و استعلام گارانتی', mod: 'support_webshop' as ActiveModuleId, cat: 'پشتیبانی و وب‌شاپ' },
-    { title: 'فرم‌ساز و طراح گردش کار (Customize Form & Workflow)', mod: 'frappe_core' as ActiveModuleId, cat: 'تنظیمات و ابزارها' },
-    { title: 'کنترل دسترسی نقش‌ها، حقوق و دستمزد و تولید (BOM)', mod: 'admin_enterprise' as ActiveModuleId, cat: 'مدیریت سیستم' },
+    { title: 'درخت حساب‌ها', mod: 'accounting' as ActiveModuleId, sub: 'coa' as AccountingSubTab, cat: 'حسابداری' },
+    { title: 'دفتر کل و تراز آزمایشی ۶ ستونی', mod: 'accounting' as ActiveModuleId, sub: 'gl_trial' as AccountingSubTab, cat: 'حسابداری' },
+    { title: 'صورت سود و زیان و ترازنامه', mod: 'accounting' as ActiveModuleId, sub: 'statements' as AccountingSubTab, cat: 'حسابداری' },
+    { title: 'سند حسابداری روزنامه', mod: 'accounting' as ActiveModuleId, sub: 'journal' as AccountingSubTab, cat: 'حسابداری' },
+    { title: 'فاکتور فروش چندردیفه و اقساط', mod: 'selling_workspace' as ActiveModuleId, sub: 'sales_invoice' as AccountingSubTab, cat: 'فروش' },
+    { title: 'فاکتور خرید و میانگین موزون', mod: 'buying_workspace' as ActiveModuleId, sub: 'purchase_invoice' as AccountingSubTab, cat: 'خرید' },
+    { title: 'دریافت و پرداخت و چک صیادی', mod: 'accounting' as ActiveModuleId, sub: 'payment_cheques' as AccountingSubTab, cat: 'خزانه‌داری' },
+    { title: 'مراکز هزینه و بودجه', mod: 'accounting' as ActiveModuleId, sub: 'budget' as AccountingSubTab, cat: 'بودجه' },
+    { title: 'دارایی‌های ثابت و استهلاک', mod: 'accounting' as ActiveModuleId, sub: 'assets' as AccountingSubTab, cat: 'اموال' },
+    { title: 'صندوق فروشگاهی لمسی و آفلاین', mod: 'selling_pos' as ActiveModuleId, cat: 'صندوق فروشگاهی' },
+    { title: 'سرنخ‌ها و فرصت‌های فروش', mod: 'crm' as ActiveModuleId, cat: 'مشتریان' },
+    { title: 'کالاها، واحدهای سنجش و پکیج باندل', mod: 'inventory' as ActiveModuleId, cat: 'انبار' },
+    { title: 'سرشکن هزینه‌های گمرک و خرید', mod: 'inventory' as ActiveModuleId, cat: 'انبار' },
+    { title: 'فروشگاه آنلاین یکپارچه و استعلام گارانتی', mod: 'support_webshop' as ActiveModuleId, cat: 'پشتیبانی و فروشگاه آنلاین' },
+    { title: 'فرم‌ساز و طراح گردش کار', mod: 'frappe_core' as ActiveModuleId, cat: 'تنظیمات و فرم‌ساز' },
+    { title: 'کنترل دسترسی نقش‌ها، حقوق و دستمزد و تولید', mod: 'admin_enterprise' as ActiveModuleId, cat: 'مدیریت سیستم' },
   ];
 
   const filteredDocTypes = allDocTypesCatalog.filter(
@@ -1155,7 +1156,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FAFAFA] text-slate-900">
-      {/* FRAPPE DESK STANDARD TOP HEADER (No duplicate module tabs) */}
+      {/* TOP HEADER (100% Persian, no duplicate module tabs) */}
       <header className="flex items-center justify-between gap-4 px-5 h-14 bg-white/95 backdrop-blur-xs border-b border-slate-200/80 sticky top-0 z-30 no-print">
         {/* Right Zone: Brand Wordmark + Breadcrumb Path */}
         <div className="flex items-center gap-2.5 min-w-0">
@@ -1167,7 +1168,7 @@ export default function App() {
             <span className="w-6 h-6 rounded-md bg-slate-900 text-white flex items-center justify-center text-xs font-bold">
               ا
             </span>
-            <span>امکان ERP</span>
+            <span>امکان</span>
           </button>
           <ChevronLeft className="w-3.5 h-3.5 text-slate-300 shrink-0" />
           <span className="text-xs font-medium text-slate-600 truncate">
@@ -1175,7 +1176,7 @@ export default function App() {
           </span>
         </div>
 
-        {/* Center Zone: Frappe Awesomebar Command Search (Ctrl+K) */}
+        {/* Center Zone: Global Search */}
         <div className="flex-1 max-w-md mx-auto hidden sm:block">
           <button
             type="button"
@@ -1184,15 +1185,15 @@ export default function App() {
           >
             <span className="flex items-center gap-2 truncate">
               <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span>جستجو یا تایپ دستور در سامانه (Awesomebar)...</span>
+              <span>جستجوی سریع اسناد، حساب‌ها و بخش‌ها...</span>
             </span>
-            <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white text-slate-500 border border-slate-200 rounded shadow-2xs shrink-0">
-              Ctrl + K
-            </kbd>
+            <span className="px-1.5 py-0.5 text-[10px] bg-white text-slate-500 border border-slate-200 rounded shadow-2xs shrink-0">
+              جستجو
+            </span>
           </button>
         </div>
 
-        {/* Left Zone: Fiscal Year Selector, Default Branch Selector & ERPNext Status */}
+        {/* Left Zone: Fiscal Year Selector, Default Branch Selector & Status */}
         <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
@@ -1239,11 +1240,11 @@ export default function App() {
           </div>
 
           <div
-            title="وضعیت اتصال هسته Frappe v15"
-            className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50/80 border border-emerald-200/80 text-emerald-800 rounded-lg text-[11px] font-mono"
+            title="وضعیت اتصال به سرور مرکزی"
+            className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50/80 border border-emerald-200/80 text-emerald-800 rounded-lg text-[11px]"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span>localhost:8080</span>
+            <span>متصل به سرور مرکزی</span>
           </div>
         </div>
       </header>
@@ -1260,36 +1261,36 @@ export default function App() {
         </div>
       )}
 
-      {/* Workspace Body: ERPNext Desk Sidebar + Main Viewport */}
+      {/* Workspace Body: Sidebar + Main Viewport */}
       <div className="flex-1 flex flex-col lg:flex-row max-w-[1440px] w-full mx-auto">
-        {/* Clean ERPNext Sidebar */}
+        {/* Clean Sidebar */}
         <aside
-          aria-label="منوی فضاهای کاری ERPNext"
+          aria-label="منوی بخش‌های سامانه"
           className="w-full lg:w-60 bg-white border-b lg:border-b-0 lg:border-l border-slate-200/80 px-3 py-4 shrink-0 no-print space-y-4"
         >
           {/* Role Switcher */}
           <div className="px-1 space-y-1">
-            <label className="block text-[11px] text-slate-400">نقش کاربری فعال (RBAC)</label>
+            <label className="block text-[11px] text-slate-400">نقش کاربری فعال</label>
             <select
               aria-label="تغییر سطح دسترسی کاربر"
               value={activeRole}
               onChange={(e) => {
                 const nextRole = e.target.value as SystemRole;
                 setActiveRole(nextRole);
-                triggerToast(`سطح دسترسی فعال به «${nextRole}» تغییر یافت.`);
+                triggerToast(`سطح دسترسی فعال به «${formatRoleName(nextRole)}» تغییر یافت.`);
               }}
               className="w-full px-2.5 py-1.5 text-xs font-medium text-slate-800 bg-slate-50 border border-slate-200/80 rounded-lg focus:outline-none focus:border-slate-400"
             >
-              <option value="ادمین کل (Super Admin)">ادمین کل (Super Admin)</option>
-              <option value="مدیر مالی (Accounts Manager)">مدیر مالی (Accounts Manager)</option>
-              <option value="سرپرست انبار (Stock Manager)">سرپرست انبار (Stock Manager)</option>
-              <option value="صندوقدار POS">صندوقدار POS (محدود)</option>
+              <option value="ادمین کل (Super Admin)">مدیر کل سامانه</option>
+              <option value="مدیر مالی (Accounts Manager)">مدیر مالی و حسابداری</option>
+              <option value="سرپرست انبار (Stock Manager)">سرپرست انبار و تدارکات</option>
+              <option value="صندوقدار POS">صندوقدار فروشگاه (محدود)</option>
             </select>
           </div>
 
           <div className="space-y-1">
             <div className="px-2 text-[11px] font-semibold text-slate-400 hidden lg:block">
-              فضاهای کاری (Workspaces)
+              بخش‌های سامانه
             </div>
             <div className="flex lg:flex-col gap-0.5 overflow-x-auto lg:overflow-x-visible pb-1 lg:pb-0">
               {sidebarItems.map((item) => {
@@ -1330,7 +1331,7 @@ export default function App() {
                     میزکار مالی و عملیاتی امکان
                   </h1>
                   <p className="text-xs text-slate-500 mt-1">
-                    سال مالی {activeFiscalYear} · شعبه: {defaultBranch} · دسترسی فعال: {activeRole}
+                    سال مالی {activeFiscalYear} · شعبه: {defaultBranch} · دسترسی فعال: {formatRoleName(activeRole)}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -1339,7 +1340,7 @@ export default function App() {
                     onClick={() => handleSelectWorkspace('selling_pos')}
                     className="px-3.5 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 whitespace-nowrap"
                   >
-                    صندوق فروشگاهی (POS)
+                    صندوق فروشگاهی
                   </button>
                   <button
                     type="button"
@@ -1360,7 +1361,7 @@ export default function App() {
                     <span className="text-xs font-normal text-slate-400">تومان</span>
                   </div>
                   <div className="text-[11px] text-slate-500">
-                    {submittedSales.length} فاکتور قطعی · {glEntries.length} ردیف دفتر کل (GL)
+                    {formatCurrency(submittedSales.length)} فاکتور قطعی · {formatCurrency(glEntries.length)} ردیف دفتر کل
                   </div>
                 </div>
 
@@ -1395,56 +1396,56 @@ export default function App() {
                         <span className="text-xs font-normal text-slate-400">تومان</span>
                       </>
                     ) : (
-                      <span className="text-sm text-slate-400">مخفی (ویژه ادمین/مالی)</span>
+                      <span className="text-sm text-slate-400">مخفی (ویژه مدیر کل و مالی)</span>
                     )}
                   </div>
                   <div className="text-[11px] text-slate-500">
-                    {inventoryItems.length} کد کالای فعال (میانگین موزون)
+                    {formatCurrency(inventoryItems.length)} کد کالای فعال (میانگین موزون)
                   </div>
                 </div>
               </div>
 
               {/* Minimalist Module Grid */}
               <div className="space-y-3">
-                <h2 className="text-sm font-semibold text-slate-900">ماژول‌های اصلی ERPNext</h2>
+                <h2 className="text-sm font-semibold text-slate-900">ماژول‌های اصلی سامانه</h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
                   {[
                     {
                       id: 'accounting' as ActiveModuleId,
-                      title: 'حسابداری و مدیریت مالی (Accounting)',
-                      features: 'درخت حساب‌ها، تراز آزمایشی ۶ ستونی، دفتر کل (GL)، سند روزنامه و دریافت/پرداخت',
-                      metric: `${accounts.length} سرفصل حساب`,
+                      title: 'حسابداری و مدیریت مالی',
+                      features: 'درخت حساب‌ها، تراز آزمایشی ۶ ستونی، دفتر کل، سند روزنامه و دریافت و پرداخت',
+                      metric: `${formatCurrency(accounts.length)} سرفصل حساب`,
                     },
                     {
                       id: 'selling_workspace' as ActiveModuleId,
-                      title: 'فروش و فاکتورها (Selling)',
-                      features: 'فاکتور فروش چندردیفه، ثبت خودکار بهای تمام‌شده (COGS)، اقساط و برگشت از فروش',
-                      metric: `${salesInvoices.length} سند فروش`,
+                      title: 'فروش و فاکتورها',
+                      features: 'فاکتور فروش چندردیفه، ثبت خودکار بهای تمام‌شده، اقساط و برگشت از فروش',
+                      metric: `${formatCurrency(salesInvoices.length)} سند فروش`,
                     },
                     {
                       id: 'buying_workspace' as ActiveModuleId,
-                      title: 'تدارکات و خرید (Buying)',
-                      features: 'فاکتور خرید چندردیفه، تفکیک حساب تامین‌کننده و گمرک (Landed Cost) و میانگین موزون',
-                      metric: `${purchaseInvoices.length} سند خرید`,
+                      title: 'تدارکات و خرید',
+                      features: 'فاکتور خرید چندردیفه، تفکیک حساب تامین‌کننده و گمرک و میانگین موزون',
+                      metric: `${formatCurrency(purchaseInvoices.length)} سند خرید`,
                     },
                     {
                       id: 'inventory' as ActiveModuleId,
-                      title: 'انبار و لجستیک (Stock & WMS)',
-                      features: 'تنوع کالا، Multi-UOM، پکیج باندل پویا، ردیابی سریال/بچ و انبارگردانی',
-                      metric: `${inventoryItems.length} کالای فعال`,
+                      title: 'انبار و لجستیک',
+                      features: 'تنوع کالا، واحدهای سنجش چندگانه، پکیج باندل پویا، ردیابی سریال و انبارگردانی',
+                      metric: `${formatCurrency(inventoryItems.length)} کالای فعال`,
                     },
                     {
                       id: 'selling_pos' as ActiveModuleId,
-                      title: 'صندوق فروشگاهی لمسی (Touch POS)',
-                      features: 'صندوق آفلاین، چاپ فیش ۸cm، مالیات ۱۰٪ یکپارچه و کسر خودکار باندل',
-                      metric: 'متصل به انبار و GL',
+                      title: 'صندوق فروشگاهی لمسی',
+                      features: 'صندوق آفلاین، چاپ فیش حرارتی، مالیات ۱۰٪ یکپارچه و کسر خودکار باندل',
+                      metric: 'متصل به انبار و دفتر کل',
                     },
                     {
                       id: 'crm' as ActiveModuleId,
-                      title: 'ارتباط با مشتری (CRM)',
+                      title: 'ارتباط با مشتریان',
                       features: 'قیف فروش، کمپین‌های بازاریابی، ارزش طول عمر مشتری و باشگاه وفاداری',
-                      metric: `${crmLeads.length} پرونده فعال`,
+                      metric: `${formatCurrency(crmLeads.length)} پرونده فعال`,
                     },
                   ].map((card) => (
                     <button
@@ -1525,18 +1526,18 @@ export default function App() {
                           <div
                             style={{ height: `${m.pct}%` }}
                             className="flex-1 bg-slate-800 rounded-t-sm"
-                            title={`فروش: ${m.rev} میلیون`}
+                            title={`فروش: ${formatCurrency(m.rev)} میلیون`}
                           />
                           <div
                             style={{ height: `${Math.round(m.pct * 0.42)}%` }}
                             className="flex-1 bg-slate-300 rounded-t-sm"
-                            title={`سود خالص: ${m.profit} میلیون`}
+                            title={`سود خالص: ${formatCurrency(m.profit)} میلیون`}
                           />
                         </div>
                         <div className="flex items-center justify-between pt-1.5 border-t border-slate-200/60 font-mono text-[11px] text-slate-500">
-                          <span>{formatCurrency(m.rev)}M</span>
+                          <span>{formatCurrency(m.rev)} میلیون</span>
                           <span className="text-slate-900 font-semibold">
-                            +{formatCurrency(m.profit)}M
+                            +{formatCurrency(m.profit)}
                           </span>
                         </div>
                       </div>
@@ -1555,13 +1556,13 @@ export default function App() {
                       </thead>
                       <tbody className="divide-y divide-slate-100 font-mono">
                         <tr>
-                          <td className="py-2 px-3 font-sans font-bold">شعبه مرکزی تهران (فروش عمده B2B)</td>
+                          <td className="py-2 px-3 font-sans font-bold">شعبه مرکزی تهران (فروش عمده سازمانی)</td>
                           <td className="py-2 px-3 text-left">۱,۱۲۰,۰۰۰,۰۰۰</td>
                           <td className="py-2 px-3 text-left">۷۸۰,۰۰۰,۰۰۰</td>
                           <td className="py-2 px-3 text-left text-emerald-700 font-bold">۳۴۰,۰۰۰,۰۰۰</td>
                         </tr>
                         <tr>
-                          <td className="py-2 px-3 font-sans font-bold">شعبه الهیه (صندوق فروشگاهی POS)</td>
+                          <td className="py-2 px-3 font-sans font-bold">شعبه الهیه (صندوق فروشگاهی)</td>
                           <td className="py-2 px-3 text-left">۶۲۰,۰۰۰,۰۰۰</td>
                           <td className="py-2 px-3 text-left">۳۹۰,۰۰۰,۰۰۰</td>
                           <td className="py-2 px-3 text-left text-emerald-700 font-bold">۲۳۰,۰۰۰,۰۰۰</td>
@@ -1674,7 +1675,7 @@ export default function App() {
         </main>
       </div>
 
-      {/* Global DocType Command Palette Modal (Awesomebar) */}
+      {/* Global Search Modal */}
       {showCommandModal && (
         <div
           className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4"
@@ -1685,14 +1686,14 @@ export default function App() {
           <div className="bg-white rounded-xl border border-slate-200 max-w-lg w-full p-5 space-y-4 shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h3 id="doctype-search-title" className="text-sm font-bold text-slate-900">
-                جستجوی سریع اسناد و ماژول‌های سامانه امکان (Awesomebar)
+                جستجوی سریع اسناد و بخش‌های سامانه امکان
               </h3>
               <button
                 type="button"
                 onClick={() => setShowCommandModal(false)}
                 className="text-xs text-slate-500 hover:text-slate-900 px-2 py-1"
               >
-                بستن (Esc)
+                بستن پنجره
               </button>
             </div>
             <input

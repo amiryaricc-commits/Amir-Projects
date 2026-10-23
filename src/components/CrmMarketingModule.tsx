@@ -3,13 +3,11 @@ import {
   Users,
   Megaphone,
   Calendar,
-  TrendingUp,
   Send,
   Plus,
-  ArrowLeft,
 } from 'lucide-react';
 import { CrmLeadRecord } from '../data/erpSeedData';
-import { formatCurrency } from '../utils/erpEngine';
+import { formatCurrency, stripEnglishTerms } from '../utils/erpEngine';
 
 interface CrmMarketingModuleProps {
   leads: CrmLeadRecord[];
@@ -30,16 +28,16 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
   const [leadPhone, setLeadPhone] = useState('');
   const [leadSource, setLeadSource] = useState<CrmLeadRecord['source']>('اینستاگرام');
   const [leadStyle, setLeadStyle] = useState<CrmLeadRecord['interestStyle']>('سبک MTL (سیگاری)');
-  const [leadValue, setLeadValue] = useState(6500000);
+  const [leadValue] = useState(6500000);
 
   // Appointments state
   const [appointments, setAppointments] = useState([
     {
       id: 'apt-1',
-      title: 'جلسه حضوری تست سمپل طعم‌های جدید Peak Bar 60000',
+      title: 'جلسه حضوری تست سمپل طعم‌های جدید پیک‌بار ۶۰۰۰۰',
       contact: 'کیانوش رستمی (پخش اصفهان)',
       datetime: '۱۴۰۴/۰۸/۰۴ — ساعت ۱۱:۰۰',
-      channel: 'شوروم شعبه الهیه · همگام با Google Calendar',
+      channel: 'شوروم شعبه الهیه · همگام با تقویم سازمانی',
       status: 'تاییدشده',
     },
     {
@@ -47,7 +45,7 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
       title: 'مشاوره تلفنی راه‌اندازی استند فروشگاهی و شرایط اقساطی',
       contact: 'فرهاد امینی (همکار رشت)',
       datetime: '۱۴۰۴/۰۸/۰۵ — ساعت ۱۶:۳۰',
-      channel: 'تماس تصویری Google Meet',
+      channel: 'تماس تصویری آنلاین',
       status: 'در انتظار برگشت تماس',
     },
   ]);
@@ -55,7 +53,7 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
   // Newsletter state
   const [selectedSegment, setSelectedSegment] = useState<'MTL' | 'DTL' | 'B2B'>('MTL');
   const [newsletterSubject, setNewsletterSubject] = useState(
-    'شارژ مجدد سالت‌های اورجینال Nasty و پاد ۶۰ هزار پاف با کد تخفیف ویژه باشگاه مشتریان'
+    'شارژ مجدد سالت‌های اورجینال نستی و پاد ۶۰ هزار پاف با کد تخفیف ویژه باشگاه مشتریان'
   );
 
   const handleCreateLead = (e: React.FormEvent) => {
@@ -79,7 +77,7 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
     setLeadName('');
     setLeadPhone('');
     setShowNewLeadForm(false);
-    onShowToast('سرنخ فروش جدید (Lead) در قیف CRM ثبت شد.');
+    onShowToast('سرنخ فروش جدید در قیف ارتباط با مشتریان ثبت شد.');
   };
 
   return (
@@ -88,10 +86,10 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200">
         <div>
           <h2 className="text-xl font-bold text-slate-900">
-            مدیریت ارتباط با مشتری و بازاریابی (CRM & Marketing)
+            مدیریت ارتباط با مشتریان و بازاریابی
           </h2>
           <p className="text-sm text-slate-600 mt-1">
-            قیف سرنخ‌ها و فرصت‌های فروش، ردیابی کمپین‌های UTM و اینفلوئنسرها، تقویم جلسات، ارزش طول عمر مشتری (CLV) و خبرنامه MTL/DTL
+            قیف سرنخ‌ها و فرصت‌های فروش، ردیابی کمپین‌های تبلیغاتی و اینفلوئنسرها، تقویم جلسات، ارزش طول عمر مشتری و خبرنامه هدفمند
           </p>
         </div>
         <button
@@ -131,7 +129,7 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
             />
           </div>
           <div>
-            <label className="block font-medium text-slate-700 mb-1">کانال ورودی (UTM)</label>
+            <label className="block font-medium text-slate-700 mb-1">کانال ورودی تبلیغات</label>
             <select
               aria-label="کانال ورودی سرنخ"
               value={leadSource}
@@ -153,8 +151,8 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
               onChange={(e) => setLeadStyle(e.target.value as CrmLeadRecord['interestStyle'])}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg"
             >
-              <option value="سبک MTL (سیگاری)">سبک MTL (سیگاری)</option>
-              <option value="سبک DTL (قلیانی)">سبک DTL (قلیانی)</option>
+              <option value="سبک MTL (سیگاری)">سبک سیگاری (سالت نیکوتین)</option>
+              <option value="سبک DTL (قلیانی)">سبک قلیانی (جویس)</option>
               <option value="همکار عمده‌فروش">همکار عمده‌فروش</option>
             </select>
           </div>
@@ -162,7 +160,7 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
             type="submit"
             className="px-4 py-2 font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 whitespace-nowrap"
           >
-            افزودن به قیف CRM
+            افزودن به قیف فروش
           </button>
         </form>
       )}
@@ -170,10 +168,10 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
       {/* Sub-tabs */}
       <div className="flex items-center gap-1.5 p-1.5 bg-slate-200/70 rounded-xl w-fit">
         {[
-          { id: 'pipeline', label: 'قیف سرنخ‌ها، فرصت‌ها و ارزش طول عمر (CLV)', icon: Users },
-          { id: 'campaigns', label: 'کمپین‌های تبلیغاتی و UTM Tracking', icon: Megaphone },
-          { id: 'appointments', label: 'قرارهای ملاقات و تقویم گوگل', icon: Calendar },
-          { id: 'newsletter', label: 'خبرنامه و پیام گروهی (MTL / DTL)', icon: Send },
+          { id: 'pipeline', label: 'قیف سرنخ‌ها، فرصت‌ها و ارزش طول عمر مشتری', icon: Users },
+          { id: 'campaigns', label: 'کمپین‌های تبلیغاتی و نرخ بازگشت سرمایه', icon: Megaphone },
+          { id: 'appointments', label: 'قرارهای ملاقات و تقویم جلسات', icon: Calendar },
+          { id: 'newsletter', label: 'خبرنامه و پیام گروهی هوشمند', icon: Send },
         ].map((t) => {
           const Icon = t.icon;
           return (
@@ -199,10 +197,10 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
         <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
           <div>
             <h3 className="text-base font-bold text-slate-900">
-              مدیریت سرنخ‌ها (Leads)، فرصت‌های فروش (Opportunities) و تحلیل رفتار خرید (Customer Analytics)
+              مدیریت سرنخ‌ها، فرصت‌های فروش و تحلیل رفتار خرید مشتریان
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              پایش احتمال بسته شدن معامله، فاصله زمانی آخرین خرید (تشخیص ریزش مشتری) و ارزش طول عمر (CLV)
+              پایش احتمال بسته شدن معامله، فاصله زمانی آخرین خرید (تشخیص ریزش مشتری) و ارزش طول عمر
             </p>
           </div>
 
@@ -214,7 +212,7 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
                   <th className="py-2.5 px-3">منبع ورودی · کمپین · سبک</th>
                   <th className="py-2.5 px-3">مرحله فعلی قیف فروش</th>
                   <th className="py-2.5 px-3">احتمال موفقیت</th>
-                  <th className="py-2.5 px-3 text-left">ارزش طول عمر (CLV)</th>
+                  <th className="py-2.5 px-3 text-left">ارزش طول عمر مشتری</th>
                   <th className="py-2.5 px-3">وضعیت وفاداری / ریزش</th>
                   <th className="py-2.5 px-3">ارتقای مرحله</th>
                 </tr>
@@ -231,9 +229,13 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
                       <span className="mx-1.5" aria-hidden="true">·</span>
                       <span>{lead.campaignName}</span>
                       <span className="mx-1.5" aria-hidden="true">·</span>
-                      <span className="font-medium text-indigo-700">{lead.interestStyle}</span>
+                      <span className="font-medium text-indigo-700">
+                        {lead.interestStyle.replace('MTL ', '').replace('DTL ', '')}
+                      </span>
                     </td>
-                    <td className="py-2.5 px-3 font-semibold text-slate-800">{lead.stage}</td>
+                    <td className="py-2.5 px-3 font-semibold text-slate-800">
+                      {stripEnglishTerms(lead.stage)}
+                    </td>
                     <td className="py-2.5 px-3 font-mono font-semibold text-emerald-700">
                       {lead.probability}٪
                     </td>
@@ -274,13 +276,13 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
       {activeTab === 'campaigns' && (
         <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
           <h3 className="text-base font-bold text-slate-900">
-            عملکرد کمپین‌های تبلیغاتی و نرخ بازگشت سرمایه (Campaign & UTM ROI Tracking)
+            عملکرد کمپین‌های تبلیغاتی و نرخ بازگشت سرمایه
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
             {[
               {
-                name: 'کمپین اینفلوئنسر اینستاگرام — معرفی Peak Bar 60000',
-                utm: 'utm_source=instagram&utm_campaign=peakbar60k',
+                name: 'کمپین اینفلوئنسر اینستاگرام — معرفی پیک‌بار ۶۰۰۰۰',
+                code: 'شناسه رهگیری: کمپین اینستاگرام پاییز ۱۴۰۴',
                 spend: 35000000,
                 leadsCount: 142,
                 revenue: 485000000,
@@ -288,15 +290,15 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
               },
               {
                 name: 'کمپین کانال‌های تلگرامی ویپ و پاد',
-                utm: 'utm_source=telegram&utm_campaign=autumn_salt',
+                code: 'شناسه رهگیری: کمپین تلگرام سالت نیکوتین',
                 spend: 18000000,
                 leadsCount: 89,
                 revenue: 210000000,
                 roi: '+۱۰۶۶٪',
               },
               {
-                name: 'سئو و مقالات وبلاگ راهنمای خرید MTL / DTL',
-                utm: 'utm_source=google_organic&utm_medium=blog',
+                name: 'سئو و مقالات وبلاگ راهنمای خرید پاد و سالت',
+                code: 'شناسه رهگیری: ورودی ارگانیک موتورهای جستجو',
                 spend: 8000000,
                 leadsCount: 215,
                 revenue: 340000000,
@@ -305,7 +307,7 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
             ].map((cmp) => (
               <div key={cmp.name} className="p-4 rounded-xl border border-slate-200 space-y-2">
                 <div className="font-bold text-slate-900">{cmp.name}</div>
-                <div className="font-mono text-slate-500 text-[11px]">{cmp.utm}</div>
+                <div className="text-slate-500 text-[11px]">{cmp.code}</div>
                 <div className="pt-2 border-t border-slate-100 space-y-1">
                   <div className="flex justify-between">
                     <span className="text-slate-500">هزینه تبلیغات:</span>
@@ -334,10 +336,10 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                قرارهای ملاقات حضوری و مشاوره (Appointment & Google Calendar Sync)
+                قرارهای ملاقات حضوری و مشاوره فروش
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                مدیریت رزرو وقت بازدید از شوروم و جلسات فروش عمده همگام با تقویم گوگل
+                مدیریت رزرو وقت بازدید از شوروم و جلسات فروش عمده همگام با تقویم سازمانی
               </p>
             </div>
             <button
@@ -348,9 +350,9 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
                   {
                     id: `apt-${Date.now()}`,
                     title: 'جلسه تست محصولات جدید و مذاکره قرارداد نمایندگی',
-                    contact: 'مشتری جدید VIP',
+                    contact: 'مشتری ویژه جدید',
                     datetime: '۱۴۰۴/۰۸/۰۶ — ساعت ۱۴:۰۰',
-                    channel: 'شوروم الهیه · ثبت در Google Calendar',
+                    channel: 'شوروم الهیه · ثبت در تقویم سازمانی',
                     status: 'تاییدشده',
                   },
                 ]);
@@ -388,17 +390,17 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
         <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
           <div>
             <h3 className="text-base font-bold text-slate-900">
-              ارسال خبرنامه و پیام گروهی هوشمند (Newsletter & Audience Groups)
+              ارسال خبرنامه و پیام گروهی هوشمند
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              تفکیک مخاطبان بر اساس علاقه‌مندی فنی (طرفداران سبک MTL، سبک DTL یا خریداران عمده B2B)
+              تفکیک مخاطبان بر اساس علاقه‌مندی فنی (طرفداران سبک سیگاری، سبک قلیانی یا خریداران عمده)
             </p>
           </div>
 
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
             {[
-              { id: 'MTL', label: 'گروه طرفداران سبک MTL (سیگاری / سالت نیکوتین) — ۱,۲۴۰ عضو' },
-              { id: 'DTL', label: 'گروه طرفداران سبک DTL (قلیانی / جویس) — ۸۹۰ عضو' },
+              { id: 'MTL', label: 'گروه طرفداران سبک سیگاری (سالت نیکوتین) — ۱,۲۴۰ عضو' },
+              { id: 'DTL', label: 'گروه طرفداران سبک قلیانی (جویس) — ۸۹۰ عضو' },
               { id: 'B2B', label: 'همکاران و پخش‌کنندگان عمده — ۱۶۵ عضو' },
             ].map((seg) => (
               <button
@@ -431,7 +433,7 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
             type="button"
             onClick={() =>
               onShowToast(
-                `خبرنامه هدفمند برای گروه «${selectedSegment}» با موفقیت در صف ارسال قرار گرفت.`
+                'خبرنامه هدفمند برای اعضای گروه انتخابی با موفقیت در صف ارسال قرار گرفت.'
               )
             }
             className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"

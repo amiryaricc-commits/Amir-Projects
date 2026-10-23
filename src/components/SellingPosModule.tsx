@@ -70,7 +70,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
       id: 'qt-1',
       quoteNo: 'QTN-1404-0301',
       customer: 'پخش ویپ و لوازم جانبی خراسان',
-      itemsDesc: '۵۰ عدد پاد Peak Bar 60000 + ۳۰ بسته کارتریج XROS',
+      itemsDesc: '۵۰ عدد پاد پیک‌بار ۶۰۰۰۰ + ۳۰ بسته کارتریج اکس‌راس',
       validUntil: '۱۴۰۴/۰۸/۱۵',
       amount: 67800000,
       convertedToOrder: false,
@@ -80,7 +80,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
       id: 'qt-2',
       quoteNo: 'QTN-1404-0302',
       customer: 'فروشگاه مدرن کلاب تبریز',
-      itemsDesc: '۲۰ پکیج استارتر باندل + ۴۰ عدد سالت Nasty',
+      itemsDesc: '۲۰ پکیج استارتر باندل + ۴۰ عدد سالت نستی',
       validUntil: '۱۴۰۴/۰۸/۱۲',
       amount: 74200000,
       convertedToOrder: true,
@@ -126,7 +126,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
     if (cart.length === 0) return;
     if (offlineModeSim) {
       setOfflineQueueCount((c) => c + 1);
-      onShowToast('فاکتور در حافظه آفلاین مرورگر (IndexedDB) ذخیره شد و به محض اتصال سینک می‌شود.');
+      onShowToast('فاکتور در حافظه آفلاین مرورگر ذخیره شد و به محض اتصال همگام‌سازی می‌شود.');
     }
     onCompletePosSale(
       cart.map((c) => ({
@@ -156,7 +156,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200">
         <div>
           <h2 className="text-xl font-bold text-slate-900">
-            صندوق فروشگاهی لمسی و پیش‌فاکتور (Point of Sale & Quotations)
+            صندوق فروشگاهی لمسی و پیش‌فاکتورها
           </h2>
           <p className="text-sm text-slate-600 mt-1">
             پیش‌فاکتور، رزرو موجودی سفارش فروش، صندوق لمسی آفلاین، لیست‌های قیمت چندگانه، موتور پروموشن، باشگاه مشتریان و پورسانت
@@ -167,7 +167,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
             type="button"
             onClick={() => {
               if (offlineModeSim && offlineQueueCount > 0) {
-                onShowToast(`${offlineQueueCount} فاکتور آفلاین با موفقیت با سرور مرکزی همگام‌سازی (Sync) شد.`);
+                onShowToast(`${offlineQueueCount} فاکتور آفلاین با موفقیت با سرور مرکزی همگام‌سازی شد.`);
                 setOfflineQueueCount(0);
               }
               setOfflineModeSim(!offlineModeSim);
@@ -181,7 +181,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
             {offlineModeSim ? <WifiOff className="w-4 h-4" /> : <Wifi className="w-4 h-4" />}
             <span>
               {offlineModeSim
-                ? `حالت آفلاین فعال (صف سینک: ${offlineQueueCount})`
+                ? `حالت آفلاین فعال (صف همگام‌سازی: ${offlineQueueCount})`
                 : 'صندوق آنلاین و متصل به انبار'}
             </span>
           </button>
@@ -192,13 +192,13 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
               setShiftClosed(!shiftClosed);
               onShowToast(
                 !shiftClosed
-                  ? 'سند بستن دخل شبانه (POS Closing Entry) صادر و موجودی کارتخوان و نقد شمارش شد.'
+                  ? 'سند بستن دخل شبانه صادر و موجودی کارتخوان و نقد شمارش شد.'
                   : 'شیفت جدید صندوق فروشگاهی بازگشایی شد.'
               );
             }}
             className="px-3.5 py-2 text-xs font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg whitespace-nowrap shrink-0"
           >
-            {shiftClosed ? 'بازگشایی شیفت جدید POS' : 'بستن دخل و شیفت (POS Closing)'}
+            {shiftClosed ? 'بازگشایی شیفت جدید صندوق' : 'بستن دخل و شیفت صندوق'}
           </button>
         </div>
       </div>
@@ -206,8 +206,8 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
       {/* Sub-tabs */}
       <div className="flex items-center gap-1.5 p-1.5 bg-slate-200/70 rounded-xl w-fit">
         {[
-          { id: 'pos', label: 'صندوق فروشگاهی لمسی و آفلاین (POS)', icon: ShoppingBag },
-          { id: 'quotations', label: 'پیش‌فاکتور و سفارش فروش (Quotation & SO)', icon: FileText },
+          { id: 'pos', label: 'صندوق فروشگاهی لمسی و آفلاین', icon: ShoppingBag },
+          { id: 'quotations', label: 'پیش‌فاکتور و سفارش فروش', icon: FileText },
           { id: 'commissions', label: 'درخت فروشندگان، تارگت و پورسانت معرف‌ها', icon: Users },
         ].map((t) => {
           const Icon = t.icon;
@@ -240,7 +240,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
                 <input
                   type="text"
                   aria-label="جستجوی بارکد یا نام کالا در صندوق"
-                  placeholder="اسکن بارکد، کد SKU، نام کالا یا طعم (مثلاً انبه یا PK60)..."
+                  placeholder="اسکن بارکد، کد کالا، نام کالا یا طعم (مثلاً انبه)..."
                   value={barcodeQuery}
                   onChange={(e) => setBarcodeQuery(e.target.value)}
                   className="w-full pr-9 pl-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg"
@@ -273,7 +273,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
               <div className="flex items-center gap-2">
                 <Gift className="w-4 h-4 text-indigo-600 shrink-0" />
                 <span>
-                  <strong>موتور قوانین پروموشن (Pricing Rules):</strong> خرید ۳ عدد به بالا = اهدای اشانتیون خودکار · خرید ۵ عدد به بالا = ۵٪ تخفیف پلکانی خودکار
+                  <strong>موتور قوانین پروموشن:</strong> خرید ۳ عدد به بالا = اهدای اشانتیون خودکار · خرید ۵ عدد به بالا = ۵٪ تخفیف پلکانی خودکار
                 </span>
               </div>
             </div>
@@ -325,7 +325,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
           <div className="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div>
-                <h3 className="text-base font-bold text-slate-900">فیش صندوق فروشگاهی (POS Cart)</h3>
+                <h3 className="text-base font-bold text-slate-900">فیش صندوق فروشگاهی</h3>
                 <p className="text-xs text-slate-500">پروفایل صندوق: شعبه الهیه · کارتخوان سامان</p>
               </div>
               <span className="text-xs font-mono text-slate-600">
@@ -336,7 +336,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
             {/* Customer & Loyalty Tier Selector */}
             <div className="space-y-2 text-xs">
               <label className="block font-medium text-slate-700">
-                مشتری و سطح باشگاه مشتریان (Loyalty Program)
+                مشتری و سطح باشگاه مشتریان
               </label>
               <select
                 aria-label="انتخاب مشتری در صندوق"
@@ -400,7 +400,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
 
             {posTotals.freeGiftTriggered && (
               <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-900 flex items-center justify-between">
-                <span>اشانتیون خودکار پروموشن: ۱ عدد بند گردنی اورجینال Peak Bar</span>
+                <span>اشانتیون خودکار پروموشن: ۱ عدد بند گردنی اورجینال پیک‌بار</span>
                 <span className="font-bold">رایگان (۰ تومان)</span>
               </div>
             )}
@@ -408,7 +408,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
             {/* Coupon, Loyalty Redemption & Partner Code */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-slate-200 text-xs">
               <div>
-                <label className="block text-slate-600 mb-1">کد تخفیف / کارت هدیه (Coupon)</label>
+                <label className="block text-slate-600 mb-1">کد تخفیف / کارت هدیه</label>
                 <div className="flex gap-1">
                   <input
                     type="text"
@@ -421,7 +421,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
                     type="button"
                     onClick={() => {
                       setAppliedCouponPct(couponInput.trim() ? 10 : 0);
-                      onShowToast('کد تخفیف ۱۰٪ EMKAN10 روی فیش اعمال شد.');
+                      onShowToast('کد تخفیف ۱۰٪ روی فیش اعمال شد.');
                     }}
                     className="px-2.5 py-1.5 bg-slate-900 text-white rounded-lg whitespace-nowrap"
                   >
@@ -448,7 +448,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
                 <span className="font-mono tabular-nums">{formatCurrency(posTotals.grossTotal)} تومان</span>
               </div>
               <div className="flex justify-between text-emerald-700">
-                <span>تخفیف پلکانی پروموشن (Pricing Rule):</span>
+                <span>تخفیف پلکانی پروموشن:</span>
                 <span className="font-mono tabular-nums">-{formatCurrency(posTotals.pricingRuleDiscount)} تومان</span>
               </div>
               <div className="flex justify-between text-emerald-700">
@@ -493,7 +493,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
         <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
           <div>
             <h3 className="text-base font-bold text-slate-900">
-              پیش‌فاکتورها (Quotations) و تبدیل یک‌کلیکه به سفارش فروش با رزرو انبار (Sales Order Reservation)
+              پیش‌فاکتورها و تبدیل یک‌کلیکه به سفارش فروش با رزرو موجودی انبار
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
               استعلام قیمت رسمی با تاریخ اعتبار مشخص؛ با تبدیل به سفارش فروش، موجودی کالا در انبار برای مشتری رزرو می‌شود.
@@ -569,7 +569,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
             <h3 className="text-base font-bold text-slate-900">
-              درخت پرسنل فروش و تحقق تارگت ماهانه (Sales Person Tree)
+              درخت پرسنل فروش و تحقق تارگت ماهانه
             </h3>
             <div className="space-y-3 text-xs">
               {[
@@ -582,7 +582,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
                   commissionEarned: 27600000,
                 },
                 {
-                  name: 'آرش نوری (کارشناس فروش سازمانی B2B)',
+                  name: 'آرش نوری (کارشناس فروش سازمانی و عمده)',
                   role: 'زیرمجموعه شعبه مرکزی',
                   target: 800000000,
                   achieved: 740000000,
@@ -590,7 +590,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
                   commissionEarned: 25900000,
                 },
                 {
-                  name: 'نگار محمدی (مسئول فروش شعبه الهیه و POS)',
+                  name: 'نگار محمدی (مسئول فروش شعبه الهیه و صندوق)',
                   role: 'زیرمجموعه شعبه الهیه',
                   target: 500000000,
                   achieved: 490000000,
@@ -625,19 +625,19 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
 
           <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
             <h3 className="text-base font-bold text-slate-900">
-              مدیریت معرف‌ها و شرکای تجاری (Sales Partners & Affiliates)
+              مدیریت معرف‌ها و شرکای تجاری
             </h3>
             <div className="space-y-3 text-xs">
               {[
                 {
-                  partner: 'کافه ویپ جردن (کد معرف: PRT-JRD-01)',
+                  partner: 'کافه ویپ جردن (کد معرف: ۱۰۱)',
                   referredInvoices: 28,
                   totalSales: 310000000,
                   commissionPct: 5,
                   payableCommission: 15500000,
                 },
                 {
-                  partner: 'کانال تخصصی بررسی پاد و جویس (PRT-REV-04)',
+                  partner: 'کانال تخصصی بررسی پاد و جویس (کد معرف: ۱۰۴)',
                   referredInvoices: 64,
                   totalSales: 185000000,
                   commissionPct: 7,
@@ -673,7 +673,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
           <div className="bg-white rounded-xl border border-slate-300 w-80 p-5 space-y-3 shadow-2xl font-mono text-xs">
             <div className="text-center border-b border-dashed border-slate-400 pb-3 space-y-1">
               <div id="thermal-receipt-title" className="font-bold text-sm text-slate-900">
-                فروشگاه و صندوق امکان (Emkan POS)
+                فروشگاه و صندوق امکان
               </div>
               <div className="text-slate-500">فیش حرارتی استاندارد ۸ سانتی‌متری</div>
               <div className="text-slate-600">مشتری: {selectedCustomer}</div>

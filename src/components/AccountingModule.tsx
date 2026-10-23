@@ -40,6 +40,8 @@ import {
   computeMultiLineInvoiceTotals,
   computeTrialBalance6Col,
   checkRolePermission,
+  formatVoucherType,
+  stripEnglishTerms,
   SystemRole,
   JournalLine,
 } from '../utils/erpEngine';
@@ -187,7 +189,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
   const [invCostCenter, setInvCostCenter] = useState(
     costCenters[0]?.name || 'فروشگاه و شوروم شعبه الهیه'
   );
-  const [invChannel, setInvChannel] = useState('فروش سازمانی B2B');
+  const [invChannel, setInvChannel] = useState('فروش سازمانی و عمده');
   const [invTermsType, setInvTermsType] = useState<'cash' | 'installment3' | 'subscription'>(
     'installment3'
   );
@@ -197,7 +199,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
     {
       id: 'sline-1',
       sku: inventoryItems[0]?.sku || 'PK60-MANGO-50',
-      itemName: inventoryItems[0]?.name || 'پاد Peak Bar 60000',
+      itemName: inventoryItems[0]?.name || 'پاد پیک‌بار ۶۰۰۰۰',
       uom: inventoryItems[0]?.uomPrimary || 'عدد',
       qty: 10,
       unitPrice: inventoryItems[0]?.wholesalePrice || 960000,
@@ -208,7 +210,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
     {
       id: 'sline-2',
       sku: inventoryItems[3]?.sku || 'COIL-XROS-06',
-      itemName: inventoryItems[3]?.name || 'بسته کارتریج XROS',
+      itemName: inventoryItems[3]?.name || 'بسته کارتریج اکس‌راس',
       uom: inventoryItems[3]?.uomPrimary || 'بسته',
       qty: 5,
       unitPrice: inventoryItems[3]?.wholesalePrice || 660000,
@@ -220,7 +222,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
 
   // Multi-Line Purchase Invoice Form State
   const [showNewPurchaseForm, setShowNewPurchaseForm] = useState(false);
-  const [pinvSupplier, setPinvSupplier] = useState('بازرگانی شنژن ویپ تریدینگ (واردات مستقیم)');
+  const [pinvSupplier, setPinvSupplier] = useState('بازرگانی شنژن تریدینگ (واردات مستقیم)');
   const [pinvWarehouse, setPinvWarehouse] = useState('انبار مرکزی کهریزک');
   const [pinvBranch, setPinvBranch] = useState('انبار مرکزی کهریزک');
   const [pinvLandedCost, setPinvLandedCost] = useState(3500000);
@@ -229,7 +231,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
     {
       id: 'pline-1',
       sku: inventoryItems[0]?.sku || 'PK60-MANGO-50',
-      itemName: inventoryItems[0]?.name || 'پاد Peak Bar 60000',
+      itemName: inventoryItems[0]?.name || 'پاد پیک‌بار ۶۰۰۰۰',
       uom: inventoryItems[0]?.uomPrimary || 'عدد',
       qty: 50,
       unitPrice: 760000,
@@ -240,7 +242,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
     {
       id: 'pline-2',
       sku: inventoryItems[2]?.sku || 'SALT-NASTY-30',
-      itemName: inventoryItems[2]?.name || 'سالت Nasty ۳۰ میل',
+      itemName: inventoryItems[2]?.name || 'سالت نستی ۳۰ میل',
       uom: inventoryItems[2]?.uomPrimary || 'بطری',
       qty: 30,
       unitPrice: 440000,
@@ -458,7 +460,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
           ? 'تسویه نقد در لحظه'
           : invTermsType === 'installment3'
             ? '۳۰٪ نقد، ۳۵٪ یک ماهه، ۳۵٪ دو ماهه'
-            : 'اشتراک خودکار ماهانه (Auto-Repeat)',
+            : 'اشتراک خودکار ماهانه',
       updateStock: invUpdateStock,
       isSubscription: invTermsType === 'subscription',
       subscriptionInterval: invTermsType === 'subscription' ? 'ماهانه' : undefined,
@@ -554,20 +556,20 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
     if (docstatus === 0) {
       return (
         <span className="px-2 py-0.5 text-[11px] font-medium rounded-md bg-amber-50 text-amber-800 border border-amber-200">
-          پیش‌نویس (Draft · 0)
+          پیش‌نویس
         </span>
       );
     }
     if (docstatus === 1) {
       return (
         <span className="px-2 py-0.5 text-[11px] font-medium rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
-          ثبت قطعی (Submitted · 1)
+          ثبت قطعی
         </span>
       );
     }
     return (
       <span className="px-2 py-0.5 text-[11px] font-medium rounded-md bg-rose-50 text-rose-800 border border-rose-200">
-        ابطال‌شده (Cancelled · 2)
+        ابطال‌شده
       </span>
     );
   };
@@ -590,15 +592,15 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
   );
 
   const subTabs: { id: AccountingSubTab; label: string }[] = [
-    { id: 'coa', label: 'درخت حساب‌ها (Chart of Accounts)' },
-    { id: 'gl_trial', label: 'دفتر کل و تراز آزمایشی (GL & Trial Balance)' },
-    { id: 'statements', label: 'صورت‌های مالی (P&L & Balance Sheet)' },
-    { id: 'journal', label: 'اسناد روزنامه (Journal Entry)' },
-    { id: 'sales_invoice', label: 'فاکتورهای فروش (Sales Invoice)' },
-    { id: 'purchase_invoice', label: 'فاکتورهای خرید (Purchase Invoice)' },
-    { id: 'payment_cheques', label: 'دریافت و پرداخت و چک (Payment & Cheques)' },
-    { id: 'budget', label: 'مراکز هزینه و بودجه (Cost Centers)' },
-    { id: 'assets', label: 'دارایی‌های ثابت (Fixed Assets)' },
+    { id: 'coa', label: 'درخت حساب‌ها' },
+    { id: 'gl_trial', label: 'دفتر کل و تراز آزمایشی' },
+    { id: 'statements', label: 'صورت‌های مالی' },
+    { id: 'journal', label: 'اسناد روزنامه' },
+    { id: 'sales_invoice', label: 'فاکتورهای فروش' },
+    { id: 'purchase_invoice', label: 'فاکتورهای خرید' },
+    { id: 'payment_cheques', label: 'دریافت، پرداخت و چک' },
+    { id: 'budget', label: 'مراکز هزینه و بودجه' },
+    { id: 'assets', label: 'دارایی‌های ثابت' },
   ];
 
   return (
@@ -607,10 +609,10 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-5 border-b border-slate-200/80">
         <div>
           <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-            حسابداری و مدیریت مالی (ERPNext Accounting)
+            حسابداری و مدیریت مالی
           </h2>
-          <p className="text-xs text-slate-500 mt-1">
-            موتور ثبت دوبل تعهدی، کاردکس دائمی انبار (Perpetual Inventory COGS) و چرخه استاندارد اسناد (Draft / Submit / Cancel)
+          <p className="text-xs text-slate-500 mt-0.5">
+            موتور ثبت دوبل تعهدی، کاردکس دائمی انبار و چرخه استاندارد اسناد (پیش‌نویس، ثبت قطعی و ابطال)
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
@@ -618,13 +620,13 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
             type="button"
             onClick={() => {
               if (!checkRolePermission(activeRole, 'unlock_fiscal_year')) {
-                onShowToast('خطای دسترسی: فقط نقش «ادمین کل (Super Admin)» مجاز به بستن یا بازگشایی قفل سال مالی است.');
+                onShowToast('خطای دسترسی: فقط نقش «مدیر کل سامانه» مجاز به بستن یا بازگشایی قفل سال مالی است.');
                 return;
               }
               onToggleFiscalYearLock();
               onShowToast(
                 !fiscalYearLocked
-                  ? 'سند بستن دوره مالی (Period Closing Voucher) صادر شد و سال مالی قفل گردید.'
+                  ? 'سند بستن دوره مالی صادر شد و سال مالی قفل گردید.'
                   : 'قفل دوره مالی ۱۴۰۴ بازگشایی شد.'
               );
             }}
@@ -636,7 +638,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
           >
             {fiscalYearLocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
             <span>
-              {fiscalYearLocked ? 'سال مالی ۱۴۰۴: قفل‌شده' : 'بستن دوره مالی (Period Closing)'}
+              {fiscalYearLocked ? 'سال مالی ۱۴۰۴: قفل‌شده' : 'بستن دوره مالی'}
             </span>
           </button>
 
@@ -680,10 +682,10 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                درختواره سلسله‌مراتبی حساب‌ها (Tree View Chart of Accounts)
+                درختواره سلسله‌مراتبی حساب‌ها
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                نمایش مانده واقعی دفتر کل بدون ضرایب فرضی · قابلیت باز و بسته کردن زیرشاخه‌ها (Expand / Collapse) و تعریف حساب با انتخاب حساب مادر
+                نمایش مانده واقعی دفتر کل · قابلیت باز و بسته کردن زیرشاخه‌ها و تعریف سرفصل با انتخاب حساب مادر
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -770,7 +772,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
               </div>
               <div>
                 <label className="block font-medium text-slate-700 mb-1">
-                  حساب مادر (Parent Account)
+                  حساب مادر
                 </label>
                 <select
                   aria-label="انتخاب حساب مادر"
@@ -863,7 +865,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                         </div>
                       </td>
                       <td className="py-2.5 px-3 font-mono text-slate-400">
-                        {acc.parentCode || 'ریشه (Root)'}
+                        {acc.parentCode || 'ریشه اصلی'}
                       </td>
                       <td className="py-2.5 px-3 text-slate-500">
                         <span>{acc.category}</span>
@@ -911,7 +913,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-base font-bold text-slate-900">
-                    تراز آزمایشی ۶ ستونی استاندارد (6-Column Trial Balance)
+                    تراز آزمایشی ۶ ستونی استاندارد
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
                     تفکیک کامل سطوح حساب (جلوگیری از قاطی شدن حساب‌های گروه و معین) به همراه جمع کل ستون‌ها در فوتر جدول
@@ -1027,10 +1029,10 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-base font-bold text-slate-900">
-                    گزارش ریز گردش دفتر کل (General Ledger Entries — GL Entry)
+                    گزارش ریز گردش دفتر کل
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    تمامی آرتیکل‌های صادرشده از فاکتورهای فروش، بهای تمام‌شده (COGS)، فاکتورهای خرید، اسناد روزنامه و دریافت/پرداخت‌ها
+                    تمامی آرتیکل‌های صادرشده از فاکتورهای فروش، بهای تمام‌شده، فاکتورهای خرید، اسناد روزنامه و دریافت و پرداخت‌ها
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -1053,12 +1055,12 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                     onChange={(e) => setGlFilterVoucherType(e.target.value)}
                     className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
                   >
-                    <option value="همه اسناد">همه انواع اسناد (Voucher Types)</option>
-                    <option value="Sales Invoice">Sales Invoice (فاکتور فروش و COGS)</option>
-                    <option value="Purchase Invoice">Purchase Invoice (فاکتور خرید و گمرک)</option>
-                    <option value="Journal Entry">Journal Entry (سند روزنامه)</option>
-                    <option value="Payment Entry">Payment Entry (دریافت و پرداخت)</option>
-                    <option value="POS Invoice">POS Invoice (فیش صندوق)</option>
+                    <option value="همه اسناد">همه انواع اسناد</option>
+                    <option value="Sales Invoice">فاکتور فروش و بهای تمام‌شده</option>
+                    <option value="Purchase Invoice">فاکتور خرید و هزینه‌های گمرک</option>
+                    <option value="Journal Entry">سند حسابداری روزنامه</option>
+                    <option value="Payment Entry">سند دریافت و پرداخت خزانه</option>
+                    <option value="POS Invoice">فیش صندوق فروشگاهی</option>
                   </select>
                 </div>
               </div>
@@ -1068,9 +1070,9 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
                       <th className="py-2.5 px-3">تاریخ</th>
-                      <th className="py-2.5 px-3">نوع و شماره سند (Voucher)</th>
+                      <th className="py-2.5 px-3">نوع و شماره سند</th>
                       <th className="py-2.5 px-3">کد و نام حساب</th>
-                      <th className="py-2.5 px-3">طرف حساب (Party)</th>
+                      <th className="py-2.5 px-3">طرف حساب</th>
                       <th className="py-2.5 px-3">شعبه · مرکز هزینه</th>
                       <th className="py-2.5 px-3 text-left">بدهکار (تومان)</th>
                       <th className="py-2.5 px-3 text-left">بستانکار (تومان)</th>
@@ -1085,7 +1087,9 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                         <td className="py-2 px-3 font-mono text-slate-500">{g.postingDate}</td>
                         <td className="py-2 px-3 font-mono">
                           <span className="font-semibold text-slate-900">{g.voucherNo}</span>
-                          <div className="text-[11px] text-slate-400">{g.voucherType}</div>
+                          <div className="text-[11px] text-slate-400 font-sans">
+                            {formatVoucherType(g.voucherType)}
+                          </div>
                         </td>
                         <td className="py-2 px-3">
                           <span className="font-mono text-slate-500 ml-1.5">{g.accountCode}</span>
@@ -1129,12 +1133,12 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-2">
-                <div className="text-xs text-slate-400">صورت سود و زیان دوره (Profit & Loss)</div>
+                <div className="text-xs text-slate-400">صورت سود و زیان دوره</div>
                 <div className="text-sm font-bold text-slate-900">
                   درآمد کل عملیاتی: <span className="font-mono">{formatCurrency(fin.totalRevenue)}</span> تومان
                 </div>
                 <div className="text-xs text-rose-700">
-                  بهای تمام‌شده (COGS) و هزینه‌ها: <span className="font-mono">-{formatCurrency(fin.totalExpenses)}</span> تومان
+                  بهای تمام‌شده و هزینه‌ها: <span className="font-mono">-{formatCurrency(fin.totalExpenses)}</span> تومان
                 </div>
                 <div className="pt-2 border-t border-slate-100 text-sm font-bold text-emerald-700">
                   سود خالص دوره: <span className="font-mono">{formatCurrency(fin.netProfit)}</span> تومان
@@ -1142,7 +1146,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
               </div>
 
               <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-2">
-                <div className="text-xs text-slate-400">ترازنامه (Balance Sheet — دارایی‌ها)</div>
+                <div className="text-xs text-slate-400">ترازنامه (دارایی‌ها)</div>
                 <div className="text-sm font-bold text-slate-900">
                   جمع کل دارایی‌ها: <span className="font-mono">{formatCurrency(fin.totalAssets)}</span> تومان
                 </div>
@@ -1167,10 +1171,10 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-base font-bold text-slate-900">
-                    سهامداران، تقسیم سود (Shareholder Ledger) و نرخ استاندارد مالیات (VAT {DEFAULT_VAT_PERCENT}٪)
+                    سهامداران، تقسیم سود و نرخ استاندارد مالیات بر ارزش افزوده ({DEFAULT_VAT_PERCENT}٪)
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    نرخ مالیات بر ارزش افزوده در کل سیستم (فاکتور فروش، POS و وب‌شاپ) به صورت یکپارچه روی {DEFAULT_VAT_PERCENT}٪ تنظیم شده است
+                    نرخ مالیات بر ارزش افزوده در کل سامانه (فاکتور فروش، صندوق فروشگاهی و فروشگاه آنلاین) به صورت یکپارچه روی {DEFAULT_VAT_PERCENT}٪ تنظیم شده است
                   </p>
                 </div>
               </div>
@@ -1206,10 +1210,10 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h3 className="text-base font-bold text-slate-900">
-                  ثبت سند حسابداری روزنامه دوبل (Journal Entry)
+                  ثبت سند حسابداری روزنامه دوبل
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  انتخاب آزادانه سرفصل حساب، نوع و نام طرف حساب (Party) و مرکز هزینه/شعبه برای هر آرتیکل همراه با کنترل تراز دوبل
+                  انتخاب آزادانه سرفصل حساب، نوع و نام طرف حساب و مرکز هزینه یا شعبه برای هر آرتیکل همراه با کنترل تراز دوبل
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -1253,7 +1257,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
                     <th className="py-2.5 px-2">سرفصل حساب (معین / تفصیلی / کل)</th>
-                    <th className="py-2.5 px-2">نوع و نام طرف حساب (Party)</th>
+                    <th className="py-2.5 px-2">نوع و نام طرف حساب</th>
                     <th className="py-2.5 px-2">مرکز هزینه و شعبه</th>
                     <th className="py-2.5 px-2">شرح آرتیکل</th>
                     <th className="py-2.5 px-2">بدهکار (تومان)</th>
@@ -1483,7 +1487,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                   }}
                   className="px-3.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-40"
                 >
-                  ذخیره پیش‌نویس (Draft)
+                  ذخیره پیش‌نویس
                 </button>
                 <button
                   type="button"
@@ -1507,7 +1511,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                   }}
                   className="px-4 py-1.5 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-40"
                 >
-                  ثبت قطعی در دفتر کل (Submit)
+                  ثبت قطعی در دفتر کل
                 </button>
               </div>
             </div>
@@ -1522,10 +1526,10 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
               <table className="w-full text-right text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
-                    <th className="py-2.5 px-3">شماره سند (Voucher No)</th>
+                    <th className="py-2.5 px-3">شماره سند</th>
                     <th className="py-2.5 px-3">عنوان و شرح سند</th>
                     <th className="py-2.5 px-3">تاریخ</th>
-                    <th className="py-2.5 px-3">وضعیت چرخه سند (docstatus)</th>
+                    <th className="py-2.5 px-3">وضعیت چرخه سند</th>
                     <th className="py-2.5 px-3 text-left">جمع بدهکار / بستانکار</th>
                     <th className="py-2.5 px-3 text-left">عملیات</th>
                   </tr>
@@ -1566,10 +1570,10 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                فاکتورهای فروش (Sales Invoice)، تقسیط ۳۰/۳۵/۳۵ و صدور خودکار سند بهای تمام‌شده (COGS)
+                فاکتورهای فروش، تقسیط ۳۰/۳۵/۳۵ و صدور خودکار سند بهای تمام‌شده
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                روی هر فاکتور کلیک کنید تا نمای کامل سند (Document Form View) باز شود و عملیات Submit، ثبت دریافت (Payment Entry)، برگشت از فروش (Credit Note) یا ابطال (Cancel) را انجام دهید
+                روی هر فاکتور کلیک کنید تا نمای کامل سند باز شود و عملیات ثبت قطعی، ثبت دریافت، برگشت از فروش یا ابطال را انجام دهید
               </p>
             </div>
             <button
@@ -1587,9 +1591,9 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
                   <th className="py-2.5 px-3">شماره فاکتور</th>
                   <th className="py-2.5 px-3">مشتری · اقلام</th>
-                  <th className="py-2.5 px-3">وضعیت سند (docstatus)</th>
-                  <th className="py-2.5 px-3 text-left">مبلغ کل (با VAT ۱۰٪)</th>
-                  <th className="py-2.5 px-3 text-left">بهای تمام‌شده (COGS)</th>
+                  <th className="py-2.5 px-3">وضعیت سند</th>
+                  <th className="py-2.5 px-3 text-left">مبلغ کل (با ارزش افزوده ۱۰٪)</th>
+                  <th className="py-2.5 px-3 text-left">بهای تمام‌شده</th>
                   <th className="py-2.5 px-3 text-left">مانده دریافتنی</th>
                   <th className="py-2.5 px-3 text-left">عملیات سریع</th>
                 </tr>
@@ -1641,7 +1645,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                               onClick={() => onSubmitSalesInvoice(inv.id)}
                               className="px-2.5 py-1 text-[11px] font-semibold bg-emerald-600 text-white rounded hover:bg-emerald-700"
                             >
-                              ثبت قطعی (Submit)
+                              ثبت قطعی
                             </button>
                           )}
                           {inv.docstatus === 1 && remaining > 0 && (
@@ -1686,7 +1690,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                فاکتورهای خرید چندردیفه (Purchase Invoice) و سرشکن گمرک (Landed Cost — حساب ۲۱۰۴)
+                فاکتورهای خرید چندردیفه و سرشکن هزینه‌های گمرک (حساب ۲۱۰۴)
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 بستانکار کردن حساب تامین‌کننده (۲۱۰۱) به مبلغ خالص کالا و حساب واسط گمرک (۲۱۰۴) به مبلغ هزینه‌های ترخیص، و بدهکار کردن موجودی انبار (۱۱۰۴) به جمع بهای تمام‌شده
@@ -1749,8 +1753,8 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                     onChange={(e) => setPinvDocStatusMode(Number(e.target.value) as DocStatus)}
                     className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg"
                   >
-                    <option value={1}>ثبت قطعی (Submit — ورود به انبار و دفتر کل)</option>
-                    <option value={0}>ذخیره پیش‌نویس (Draft — بدون اثر مالی)</option>
+                    <option value={1}>ثبت قطعی (ورود به انبار و دفتر کل)</option>
+                    <option value={0}>ذخیره پیش‌نویس (بدون اثر مالی)</option>
                   </select>
                 </div>
               </div>
@@ -1760,7 +1764,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 <table className="w-full text-right text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-100 text-slate-600 border-b border-slate-200">
-                      <th className="py-2 px-3">کالای خریداری‌شده (SKU)</th>
+                      <th className="py-2 px-3">کالای خریداری‌شده (کد کالا)</th>
                       <th className="py-2 px-3">تعداد</th>
                       <th className="py-2 px-3">فی خرید واحد (تومان)</th>
                       <th className="py-2 px-3">تخفیف ردیف (٪)</th>
@@ -1938,7 +1942,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
                   <th className="py-2.5 px-3">شماره فاکتور خرید</th>
                   <th className="py-2.5 px-3">تامین‌کننده · اقلام</th>
-                  <th className="py-2.5 px-3">وضعیت سند (docstatus)</th>
+                  <th className="py-2.5 px-3">وضعیت سند</th>
                   <th className="py-2.5 px-3 text-left">هزینه گمرک (۲۱۰۴)</th>
                   <th className="py-2.5 px-3 text-left">مبلغ کل تعهد</th>
                   <th className="py-2.5 px-3 text-left">مانده پرداختنی</th>
@@ -1992,7 +1996,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                               onClick={() => onSubmitPurchaseInvoice(pinv.id)}
                               className="px-2.5 py-1 text-[11px] font-semibold bg-emerald-600 text-white rounded hover:bg-emerald-700"
                             >
-                              ثبت قطعی (Submit)
+                              ثبت قطعی
                             </button>
                           )}
                           {pinv.docstatus === 1 && remaining > 0 && (
@@ -2039,7 +2043,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-base font-bold text-slate-900">
-                  اسناد دریافت و پرداخت خزانه‌داری (Payment Entry) و تسویه فاکتورهای باز
+                  اسناد دریافت و پرداخت خزانه‌داری و تسویه فاکتورهای باز
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   ثبت دریافت اقساط از مشتریان یا پرداخت به تامین‌کنندگان همراه با کسر خودکار از مانده فاکتور و صدور سند دفتر کل
@@ -2050,7 +2054,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 onClick={() => setShowNewPaymentForm(!showNewPaymentForm)}
                 className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 whitespace-nowrap"
               >
-                + ثبت سند دریافت / پرداخت جدید (Payment Entry)
+                + ثبت سند دریافت / پرداخت جدید
               </button>
             </div>
 
@@ -2089,8 +2093,8 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                     }}
                     className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg"
                   >
-                    <option value="دریافت از مشتری (Receive)">دریافت از مشتری (Receive)</option>
-                    <option value="پرداخت به تامین‌کننده (Pay)">پرداخت به تامین‌کننده (Pay)</option>
+                    <option value="دریافت از مشتری (Receive)">دریافت از مشتری</option>
+                    <option value="پرداخت به تامین‌کننده (Pay)">پرداخت به تامین‌کننده</option>
                   </select>
                 </div>
 
@@ -2209,13 +2213,13 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                       <td className="py-2 px-3 font-mono font-semibold text-slate-900">
                         {pe.paymentNo}
                       </td>
-                      <td className="py-2 px-3 text-slate-700">{pe.paymentType}</td>
+                      <td className="py-2 px-3 text-slate-700">{stripEnglishTerms(pe.paymentType)}</td>
                       <td className="py-2 px-3 font-medium text-slate-900">{pe.partyName}</td>
                       <td className="py-2 px-3 font-mono text-indigo-700">
                         {pe.referenceVoucherNo}
                       </td>
                       <td className="py-2 px-3 text-slate-500">
-                        {pe.modeOfPayment} ({pe.bankAccountCode})
+                        {stripEnglishTerms(pe.modeOfPayment)} ({pe.bankAccountCode})
                       </td>
                       <td className="py-2 px-3 font-mono tabular-nums font-bold text-left text-emerald-700">
                         {formatCurrency(pe.amount)}
@@ -2230,7 +2234,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
           {/* Cheques Tracking */}
           <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-4">
             <h3 className="text-base font-bold text-slate-900">
-              مدیریت چک‌های صیادی و ثبت تاریخ وصول (Cheque Clearance)
+              مدیریت چک‌های صیادی و ثبت تاریخ وصول
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {cheques.map((chq) => (
@@ -2278,7 +2282,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
         <div className="space-y-6">
           <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-4">
             <h3 className="text-base font-bold text-slate-900">
-              درخت مراکز هزینه (Cost Center Tree) و کنترل بودجه (WARN / STOP)
+              درخت مراکز هزینه و کنترل بودجه (هشدار / توقف ثبت)
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs border-collapse">
@@ -2316,8 +2320,8 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                           className="px-2.5 py-1 text-xs rounded border border-slate-200 bg-slate-50 hover:bg-slate-100"
                         >
                           {cc.controlPolicy === 'STOP'
-                            ? 'توقف کامل ثبت فاکتور (STOP)'
-                            : 'هشدار سیستمی (WARN)'}
+                            ? 'توقف کامل ثبت فاکتور'
+                            : 'هشدار سیستمی'}
                         </button>
                       </td>
                     </tr>
@@ -2352,13 +2356,13 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 />
               </div>
               <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 font-medium">
-                {budgetEval.message}
+                {stripEnglishTerms(budgetEval.message)}
               </div>
             </div>
 
             <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-3 text-xs">
               <h4 className="text-sm font-bold text-slate-900">
-                تسهیم خودکار قبض و هزینه مشترک (Cost Center Allocation)
+                تسهیم خودکار قبض و هزینه مشترک بین مراکز هزینه
               </h4>
               <input
                 type="number"
@@ -2390,7 +2394,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
       {activeSubTab === 'assets' && (
         <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-4">
           <h3 className="text-base font-bold text-slate-900">
-            چرخه عمر دارایی‌های ثابت (Fixed Assets) و محاسبه خودکار استهلاک
+            چرخه عمر دارایی‌های ثابت و محاسبه خودکار استهلاک
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-right text-xs border-collapse">
@@ -2469,7 +2473,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
           <div className="bg-white rounded-xl border border-slate-200 max-w-4xl w-full p-6 space-y-5 shadow-xl my-8">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h3 id="modal-sales-invoice-title" className="text-base font-bold text-slate-900">
-                صدور فاکتور فروش چندردیفه (Multi-Line Sales Invoice)
+                صدور فاکتور فروش چندردیفه
               </h3>
               <button
                 type="button"
@@ -2519,19 +2523,19 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                   >
                     <option value="installment3">اقساطی (۳۰٪ نقد، ۳۵٪ یک‌ماهه، ۳۵٪ دوماهه)</option>
                     <option value="cash">تسویه نقد / کارتخوان (۱۰۰٪ در لحظه)</option>
-                    <option value="subscription">اشتراک خودکار ماهانه (Subscription)</option>
+                    <option value="subscription">اشتراک خودکار ماهانه</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">وضعیت ثبت سند (docstatus)</label>
+                  <label className="block font-medium text-slate-700 mb-1">وضعیت ثبت سند</label>
                   <select
                     aria-label="وضعیت ثبت سند فروش"
                     value={invDocStatusMode}
                     onChange={(e) => setInvDocStatusMode(Number(e.target.value) as DocStatus)}
                     className="w-full px-3 py-1.5 border border-slate-300 rounded-lg"
                   >
-                    <option value={1}>ثبت قطعی (Submit — ثبت در دفتر کل و کسر انبار)</option>
-                    <option value={0}>پیش‌نویس (Draft — بدون اثر در دفتر کل و انبار)</option>
+                    <option value={1}>ثبت قطعی (ثبت در دفتر کل و کسر انبار)</option>
+                    <option value={0}>پیش‌نویس (بدون اثر در دفتر کل و انبار)</option>
                   </select>
                 </div>
               </div>
@@ -2699,7 +2703,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                     onChange={(e) => setInvUpdateStock(e.target.checked)}
                     className="rounded text-slate-900"
                   />
-                  <span>کسر مستقیم کالا از انبار و صدور خودکار سند بهای تمام‌شده (COGS)</span>
+                  <span>کسر مستقیم کالا از انبار و صدور خودکار سند بهای تمام‌شده</span>
                 </label>
               </div>
 
@@ -2717,7 +2721,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                   </div>
                 </div>
                 <div>
-                  <div className="text-slate-500">بهای تمام‌شده (COGS - ۵۱۰۱):</div>
+                  <div className="text-slate-500">بهای تمام‌شده (حساب ۵۱۰۱):</div>
                   <div className="font-mono font-bold text-slate-700 mt-0.5">
                     {formatCurrency(salesCalc.totalCogs)} تومان
                   </div>
@@ -2756,8 +2760,8 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                   className="px-5 py-2 font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800"
                 >
                   {invDocStatusMode === 1
-                    ? 'ثبت قطعی فاکتور و صدور سند دفتر کل و COGS'
-                    : 'ذخیره به عنوان پیش‌نویس (Draft)'}
+                    ? 'ثبت قطعی فاکتور و صدور سند دفتر کل'
+                    : 'ذخیره به عنوان پیش‌نویس'}
                 </button>
               </div>
             </form>
@@ -2793,7 +2797,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                           {doc.invoiceNo} — {doc.customerName}
                         </h3>
                         <div className="text-slate-500 mt-0.5">
-                          فاکتور فروش (Sales Invoice) · شعبه: {doc.branchDimension}
+                          فاکتور فروش · شعبه: {doc.branchDimension}
                         </div>
                       </div>
                       {renderDocStatusBadge(doc.docstatus)}
@@ -2808,7 +2812,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>ثبت قطعی (Submit)</span>
+                          <span>ثبت قطعی</span>
                         </button>
                       )}
                       {doc.docstatus === 1 && remaining > 0 && (
@@ -2825,7 +2829,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
                         >
                           <CreditCard className="w-3.5 h-3.5" />
-                          <span>ثبت دریافت (Create Payment Entry)</span>
+                          <span>ثبت دریافت</span>
                         </button>
                       )}
                       {doc.docstatus === 1 && (
@@ -2839,7 +2843,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200"
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
-                            <span>برگشت از فروش (Credit Note)</span>
+                            <span>برگشت از فروش</span>
                           </button>
                           <button
                             type="button"
@@ -2847,7 +2851,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded-lg hover:bg-rose-100"
                           >
                             <XCircle className="w-3.5 h-3.5" />
-                            <span>ابطال سند (Cancel)</span>
+                            <span>ابطال سند</span>
                           </button>
                         </>
                       )}
@@ -2890,11 +2894,11 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
 
                   <div className="space-y-2">
                     <div className="font-bold text-slate-900">
-                      آرتیکل‌های صادرشده در دفتر کل برای این سند (GL Entries):
+                      آرتیکل‌های صادرشده در دفتر کل برای این سند:
                     </div>
                     {voucherGL.length === 0 ? (
                       <div className="p-3 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
-                        این سند در وضعیت «پیش‌نویس (Draft)» است و هنوز هیچ آرتیکلی در دفتر کل صادر نکرده است.
+                        این سند در وضعیت «پیش‌نویس» است و هنوز هیچ آرتیکلی در دفتر کل صادر نکرده است.
                       </div>
                     ) : (
                       <table className="w-full text-right border-collapse border border-slate-200">
@@ -2949,7 +2953,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                           {doc.billNo} — {doc.supplierName}
                         </h3>
                         <div className="text-slate-500 mt-0.5">
-                          فاکتور خرید (Purchase Invoice) · انبار: {doc.warehouse}
+                          فاکتور خرید · انبار: {doc.warehouse}
                         </div>
                       </div>
                       {renderDocStatusBadge(doc.docstatus)}
@@ -2963,7 +2967,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>ثبت قطعی (Submit)</span>
+                          <span>ثبت قطعی</span>
                         </button>
                       )}
                       {doc.docstatus === 1 && remaining > 0 && (
@@ -2980,7 +2984,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
                         >
                           <CreditCard className="w-3.5 h-3.5" />
-                          <span>ثبت پرداخت (Payment Entry)</span>
+                          <span>ثبت پرداخت</span>
                         </button>
                       )}
                       {doc.docstatus === 1 && (
@@ -2994,7 +2998,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200"
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
-                            <span>برگشت از خرید (Debit Note)</span>
+                            <span>برگشت از خرید</span>
                           </button>
                           <button
                             type="button"
@@ -3002,7 +3006,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded-lg hover:bg-rose-100"
                           >
                             <XCircle className="w-3.5 h-3.5" />
-                            <span>ابطال سند (Cancel)</span>
+                            <span>ابطال سند</span>
                           </button>
                         </>
                       )}
@@ -3038,10 +3042,10 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                   </div>
 
                   <div className="space-y-2">
-                    <div className="font-bold text-slate-900">آرتیکل‌های دفتر کل (GL Entries):</div>
+                    <div className="font-bold text-slate-900">آرتیکل‌های دفتر کل:</div>
                     {voucherGL.length === 0 ? (
                       <div className="p-3 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
-                        سند پیش‌نویس است؛ برای صدور آرتیکل در دفتر کل دکمه «ثبت قطعی (Submit)» را بزنید.
+                        سند پیش‌نویس است؛ برای صدور آرتیکل در دفتر کل دکمه «ثبت قطعی» را بزنید.
                       </div>
                     ) : (
                       <table className="w-full text-right border-collapse border border-slate-200">
@@ -3090,7 +3094,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                         <h3 id="doc-form-view-title" className="text-base font-bold text-slate-900 font-mono">
                           {doc.voucherNo} — {doc.title}
                         </h3>
-                        <div className="text-slate-500 mt-0.5">سند روزنامه (Journal Entry)</div>
+                        <div className="text-slate-500 mt-0.5">سند حسابداری روزنامه</div>
                       </div>
                       {renderDocStatusBadge(doc.docstatus)}
                     </div>
@@ -3102,7 +3106,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                           onClick={() => onSubmitJournalEntry(doc.id)}
                           className="px-3 py-1.5 font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700"
                         >
-                          ثبت قطعی (Submit)
+                          ثبت قطعی
                         </button>
                       )}
                       {doc.docstatus === 1 && (
@@ -3111,7 +3115,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                           onClick={() => onCancelJournalEntry(doc.id)}
                           className="px-3 py-1.5 font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded-lg hover:bg-rose-100"
                         >
-                          ابطال سند (Cancel)
+                          ابطال سند
                         </button>
                       )}
                       <button
