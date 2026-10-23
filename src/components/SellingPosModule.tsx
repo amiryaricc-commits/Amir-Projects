@@ -55,7 +55,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
     { item: inventoryItems[0], qty: 2 },
     { item: inventoryItems[2], qty: 1 },
   ]);
-  const [couponInput, setCouponInput] = useState('FARAPAY10');
+  const [couponInput, setCouponInput] = useState('EMKAN10');
   const [appliedCouponPct, setAppliedCouponPct] = useState(10);
   const [redeemPoints, setRedeemPoints] = useState(150); // 150,000 Toman
   const [salesPartnerCode, setSalesPartnerCode] = useState('PRT-TEH-09 (معرف: دکتر کاوه - ۵٪)');
@@ -419,7 +419,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
                     type="button"
                     onClick={() => {
                       setAppliedCouponPct(couponInput.trim() ? 10 : 0);
-                      onShowToast('کد تخفیف ۱۰٪ FARAPAY10 روی فیش اعمال شد.');
+                      onShowToast('کد تخفیف ۱۰٪ EMKAN10 روی فیش اعمال شد.');
                     }}
                     className="px-2.5 py-1.5 bg-slate-900 text-white rounded-lg whitespace-nowrap"
                   >
@@ -671,7 +671,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
           <div className="bg-white rounded-xl border border-slate-300 w-80 p-5 space-y-3 shadow-2xl font-mono text-xs">
             <div className="text-center border-b border-dashed border-slate-400 pb-3 space-y-1">
               <div id="thermal-receipt-title" className="font-bold text-sm text-slate-900">
-                فروشگاه و صندوق فراپِی (FaraPay POS)
+                فروشگاه و صندوق امکان (Emkan POS)
               </div>
               <div className="text-slate-500">فیش حرارتی استاندارد ۸ سانتی‌متری</div>
               <div className="text-slate-600">مشتری: {selectedCustomer}</div>

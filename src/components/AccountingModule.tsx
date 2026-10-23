@@ -34,15 +34,23 @@ import {
   calculateAssetDepreciation,
   evaluateBudgetControl,
   allocateCostCenterExpense,
+  calculateFinancialStatements,
+  checkRolePermission,
+  SystemRole,
   JournalLine,
 } from '../utils/erpEngine';
 
 interface AccountingModuleProps {
+  activeRole: SystemRole;
+  fiscalYearLocked: boolean;
+  onToggleFiscalYearLock: () => void;
   accounts: AccountNode[];
   onAddAccount: (acc: AccountNode) => void;
+  onPostJournal: (lines: { accountCode: string; debit: number; credit: number }[]) => void;
   salesInvoices: SalesInvoiceRecord[];
   onCreateSalesInvoice: (inv: SalesInvoiceRecord, deductItemSku?: string, deductQty?: number) => void;
   purchaseInvoices: PurchaseInvoiceRecord[];
+  onCreatePurchaseInvoice: (pinv: PurchaseInvoiceRecord, addSku: string, addQty: number, unitCost: number) => void;
   cheques: ChequeRecord[];
   onClearCheque: (id: string) => void;
   costCenters: CostCenterRecord[];
@@ -56,6 +64,7 @@ interface AccountingModuleProps {
 
 type SubTab =
   | 'coa'
+  | 'statements'
   | 'journal'
   | 'receivable'
   | 'payable'
@@ -64,11 +73,16 @@ type SubTab =
   | 'assets';
 
 export const AccountingModule: React.FC<AccountingModuleProps> = ({
+  activeRole,
+  fiscalYearLocked,
+  onToggleFiscalYearLock,
   accounts,
   onAddAccount,
+  onPostJournal,
   salesInvoices,
   onCreateSalesInvoice,
   purchaseInvoices,
+  onCreatePurchaseInvoice,
   cheques,
   onClearCheque,
   costCenters,
@@ -82,7 +96,14 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('coa');
   const [selectedCategory, setSelectedCategory] = useState<string>('همه');
   const [selectedDimensionBranch, setSelectedDimensionBranch] = useState<string>('همه شعب');
-  const [fiscalYearLocked, setFiscalYearLocked] = useState<boolean>(false);
+
+  // Purchase Invoice Form State
+  const [showNewPurchaseForm, setShowNewPurchaseForm] = useState(false);
+  const [pinvSupplier, setPinvSupplier] = useState('بازرگانی شنژن ویپ تریدینگ');
+  const [pinvSku, setPinvSku] = useState(inventoryItems[0]?.sku || 'PK60-MANGO-50');
+  const [pinvQty, setPinvQty] = useState(50);
+  const [pinvUnitCost, setPinvUnitCost] = useState(760000);
+  const [pinvLandedCost, setPinvLandedCost] = useState(3500000);
 
   // New Account Modal state
   const [showNewAccForm, setShowNewAccForm] = useState(false);
@@ -323,11 +344,15 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
           <button
             type="button"
             onClick={() => {
-              setFiscalYearLocked(!fiscalYearLocked);
+              if (!checkRolePermission(activeRole, 'unlock_fiscal_year')) {
+                onShowToast('خطای دسترسی: فقط نقش «ادمین کل (Super Admin)» مجاز به بستن یا بازگشایی قفل سال مالی است.');
+                return;
+              }
+              onToggleFiscalYearLock();
               onShowToast(
                 !fiscalYearLocked
-                  ? 'سند بستن دوره مالی (Period Closing Voucher) صادر شد و سال مالی قفل گردید.'
-                  : 'قفل دوره مالی ۱۴۰۴ برای ثبت اصلاحات باز شد.'
+                  ? 'سند بستن دوره مالی (Period Closing Voucher) توسط ادمین کل صادر شد و سال مالی قفل گردید.'
+                  : 'قفل دوره مالی ۱۴۰۴ توسط ادمین کل بازگشایی شد.'
               );
             }}
             className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg border transition-colors whitespace-nowrap shrink-0 ${
@@ -339,7 +364,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
             {fiscalYearLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
             <span>
               {fiscalYearLocked
-                ? 'سال مالی ۱۴۰۴: قفل‌شده (بسته)'
+                ? 'سال مالی ۱۴۰۴: قفل‌شده (ویژه ادمین کل)'
                 : 'بستن دوره مالی (Period Closing)'}
             </span>
           </button>
@@ -359,6 +384,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
       <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-200/70 rounded-xl">
         {[
           { id: 'coa', label: 'الف) درخت حساب‌ها و ابعاد', icon: BookOpen },
+          { id: 'statements', label: 'تراز آزمایشی، سود و زیان و ترازنامه', icon: Calculator },
           { id: 'journal', label: 'اسناد روزنامه و قالب‌ها', icon: FileSpreadsheet },
           { id: 'receivable', label: 'ب) فروش، اقساط و دریافتنی', icon: ArrowDownLeft },
           { id: 'payable', label: 'ج) خرید و پرداختنی', icon: ArrowUpRight },
@@ -385,6 +411,88 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
           );
         })}
       </div>
+
+      {/* TAB: FINANCIAL STATEMENTS (TRIAL BALANCE, P&L, BALANCE SHEET) */}
+      {activeSubTab === 'statements' && (() => {
+        const fin = calculateFinancialStatements(accounts);
+        return (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-2">
+                <div className="text-xs text-slate-500">صورت سود و زیان دوره (Profit & Loss)</div>
+                <div className="text-sm font-bold text-slate-900">
+                  درآمد کل: <span className="font-mono">{formatCurrency(fin.totalRevenue)}</span> ت
+                </div>
+                <div className="text-xs text-rose-700">
+                  بهای تمام‌شده و هزینه‌ها: <span className="font-mono">-{formatCurrency(fin.totalExpenses)}</span> ت
+                </div>
+                <div className="pt-2 border-t border-slate-100 text-sm font-bold text-emerald-700">
+                  سود خالص دوره: <span className="font-mono">{formatCurrency(fin.netProfit)}</span> تومان
+                </div>
+              </div>
+
+              <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-2">
+                <div className="text-xs text-slate-500">ترازنامه (Balance Sheet — سمت راست)</div>
+                <div className="text-sm font-bold text-slate-900">
+                  جمع کل دارایی‌ها: <span className="font-mono">{formatCurrency(fin.totalAssets)}</span> تومان
+                </div>
+                <div className="text-xs text-slate-600">
+                  دارایی‌های جاری، نقد و بانک، دریافتنی‌ها، انبار و اموال ثابت
+                </div>
+              </div>
+
+              <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-2">
+                <div className="text-xs text-slate-500">معادله اساسی حسابداری (سمت چپ ترازنامه)</div>
+                <div className="text-xs text-slate-700">
+                  بدهی‌ها (<span className="font-mono">{formatCurrency(fin.totalLiabilities)}</span>) + سرمایه (<span className="font-mono">{formatCurrency(fin.totalEquity)}</span>) + سود دوره (<span className="font-mono">{formatCurrency(fin.netProfit)}</span>)
+                </div>
+                <div className="pt-2 border-t border-slate-100 text-sm font-bold text-indigo-700">
+                  جمع بدهی و حقوق صاحبان سهام: <span className="font-mono">{formatCurrency(fin.equityPlusLiabilitiesAndProfit)}</span> ت (تراز کامل)
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
+              <h3 className="text-base font-bold text-slate-900">
+                تراز آزمایشی ۴ ستونی حساب‌های کل و معین (Trial Balance Report)
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-right text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
+                      <th className="py-2.5 px-3">کد حساب</th>
+                      <th className="py-2.5 px-3">نام سرفصل حساب</th>
+                      <th className="py-2.5 px-3">ماهیت حساب</th>
+                      <th className="py-2.5 px-3 text-left">مانده بدهکار (تومان)</th>
+                      <th className="py-2.5 px-3 text-left">مانده بستانکار (تومان)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {accounts.filter((a) => a.level === 'معین' || a.level === 'گروه').map((acc) => {
+                      const isDebitNature = acc.category === 'دارایی' || acc.category === 'هزینه';
+                      return (
+                        <tr key={acc.id} className="hover:bg-slate-50">
+                          <td className="py-2 px-3 font-mono text-slate-600">{acc.code}</td>
+                          <td className={`py-2 px-3 ${acc.level === 'گروه' ? 'font-bold text-slate-900' : 'pr-6 text-slate-700'}`}>
+                            {acc.name}
+                          </td>
+                          <td className="py-2 px-3 text-slate-500">{acc.category} ({acc.level})</td>
+                          <td className="py-2 px-3 font-mono text-left text-slate-900">
+                            {isDebitNature ? formatCurrency(acc.balance) : '۰'}
+                          </td>
+                          <td className="py-2 px-3 font-mono text-left text-indigo-700">
+                            {!isDebitNature ? formatCurrency(acc.balance) : '۰'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* TAB 1: CHART OF ACCOUNTS & ACCOUNTING DIMENSIONS */}
       {activeSubTab === 'coa' && (
@@ -530,6 +638,14 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                           : acc.level === 'معین'
                             ? 'pr-10 text-slate-700'
                             : 'pr-14 text-slate-600';
+                    const branchMultiplier =
+                      selectedDimensionBranch === 'همه شعب'
+                        ? 1
+                        : selectedDimensionBranch === 'شعبه مرکزی تهران'
+                          ? 0.55
+                          : selectedDimensionBranch === 'شعبه الهیه'
+                            ? 0.3
+                            : 0.15;
                     return (
                       <tr key={acc.id} className="hover:bg-slate-50/90 transition-colors">
                         <td className="py-2.5 px-3 font-mono tabular-nums text-slate-600">
@@ -543,7 +659,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                         </td>
                         <td className="py-2.5 px-3 font-mono text-slate-500">{acc.currency}</td>
                         <td className="py-2.5 px-3 font-mono tabular-nums font-semibold text-left text-slate-900">
-                          {formatCurrency(acc.balance)}
+                          {formatCurrency(Math.round(acc.balance * branchMultiplier))}
                         </td>
                       </tr>
                     );
@@ -715,8 +831,19 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 type="button"
                 disabled={!journalValidation.isValid || fiscalYearLocked}
                 onClick={() => {
+                  if (!checkRolePermission(activeRole, 'post_journal')) {
+                    onShowToast('خطای دسترسی: نقش فعلی شما مجوز ثبت قطعی سند روزنامه در دفتر کل را ندارد.');
+                    return;
+                  }
+                  onPostJournal(
+                    journalLines.map((l) => ({
+                      accountCode: l.accountCode,
+                      debit: l.debit,
+                      credit: l.credit,
+                    }))
+                  );
                   setPostedJournalsCount((c) => c + 1);
-                  onShowToast('سند روزنامه دوبل با موفقیت در دفتر کل ثبت قطعی شد.');
+                  onShowToast('سند روزنامه دوبل با موفقیت در دفتر کل ثبت قطعی شد و مانده حساب‌ها به‌روز گردید.');
                 }}
                 className="px-4 py-1.5 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-40 whitespace-nowrap shrink-0"
               >
@@ -811,14 +938,103 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
       {/* TAB 4: ACCOUNTS PAYABLE & PURCHASE INVOICES */}
       {activeSubTab === 'payable' && (
         <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
-          <div>
-            <h3 className="text-base font-bold text-slate-900">
-              حساب‌های پرداختنی، فاکتور خرید (Purchase Invoice) و یادداشت بدهکاری / برگشت از خرید (Debit Note)
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              ثبت بدهی به تامین‌کننده، افزایش موجودی انبار و ثبت بهای تمام‌شده به همراه سرشکن هزینه‌های گمرک و باربری
-            </p>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                حساب‌های پرداختنی، فاکتور خرید (Purchase Invoice) و یادداشت بدهکاری / برگشت از خرید (Debit Note)
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                ثبت بدهی به تامین‌کننده، افزایش خودکار موجودی انبار و بازمحاسبه بهای تمام‌شده میانگین موزون
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowNewPurchaseForm(!showNewPurchaseForm)}
+              className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 whitespace-nowrap shrink-0"
+            >
+              + ثبت فاکتور خرید جدید (افزایش موجودی انبار)
+            </button>
           </div>
+
+          {showNewPurchaseForm && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const targetItem = inventoryItems.find((i) => i.sku === pinvSku) || inventoryItems[0];
+                const totalBill = pinvQty * pinvUnitCost + pinvLandedCost;
+                onCreatePurchaseInvoice(
+                  {
+                    id: `pinv-${Date.now()}`,
+                    billNo: `PINV-1404-00${90 + purchaseInvoices.length}`,
+                    supplierName: pinvSupplier,
+                    date: '۱۴۰۴/۰۸/۰۲',
+                    warehouse: 'انبار مرکزی کهریزک',
+                    status: 'بدهکار باز',
+                    totalAmount: totalBill,
+                    landedCostAdded: pinvLandedCost,
+                    itemsSummary: `${pinvQty} ${targetItem.uomPrimary} ${targetItem.name}`,
+                  },
+                  pinvSku,
+                  pinvQty,
+                  pinvUnitCost + Math.round(pinvLandedCost / Math.max(1, pinvQty))
+                );
+                setShowNewPurchaseForm(false);
+              }}
+              className="p-4 bg-slate-50 rounded-xl border border-slate-200 grid grid-cols-1 md:grid-cols-5 gap-3 items-end text-xs"
+            >
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">نام تامین‌کننده</label>
+                <input
+                  type="text"
+                  required
+                  value={pinvSupplier}
+                  onChange={(e) => setPinvSupplier(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">کالای خریداری‌شده</label>
+                <select
+                  aria-label="کالای فاکتور خرید"
+                  value={pinvSku}
+                  onChange={(e) => setPinvSku(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg"
+                >
+                  {inventoryItems.map((it) => (
+                    <option key={it.id} value={it.sku}>
+                      {it.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">تعداد خرید</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={pinvQty}
+                  onChange={(e) => setPinvQty(Math.max(1, Number(e.target.value) || 1))}
+                  className="w-full px-3 py-1.5 font-mono bg-white border border-slate-300 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">فی خرید واحد (تومان)</label>
+                <input
+                  type="number"
+                  value={pinvUnitCost}
+                  onChange={(e) => setPinvUnitCost(Number(e.target.value) || 0)}
+                  className="w-full px-3 py-1.5 font-mono bg-white border border-slate-300 rounded-lg"
+                />
+              </div>
+              <button
+                type="submit"
+                className="px-4 py-2 font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 whitespace-nowrap"
+              >
+                ثبت خرید و ورود به انبار
+              </button>
+            </form>
+          )}
+
           <div className="overflow-x-auto">
             <table className="w-full text-right text-xs border-collapse">
               <thead>
@@ -977,7 +1193,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                       }}
                       className="px-3.5 py-1.5 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:bg-emerald-600 whitespace-nowrap shrink-0"
                     >
-                      {isDone ? 'تطبیق انجام شد ✓' : 'تطبیق ۱-کلیکه'}
+                      {isDone ? 'تطبیق انجام شد (تسویه)' : 'تطبیق ۱-کلیکه'}
                     </button>
                   </div>
                 );
@@ -1290,7 +1506,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 onClick={() => setShowNewInvoiceModal(false)}
                 className="text-xs text-slate-500 hover:text-slate-900 px-2 py-1"
               >
-                بستن ✕
+                بستن پنجره
               </button>
             </div>
 

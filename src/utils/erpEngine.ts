@@ -378,3 +378,112 @@ export function generateItemVariants(
   });
   return results;
 }
+
+export type SystemRole =
+  | 'ادمین کل (Super Admin)'
+  | 'مدیر مالی (Accounts Manager)'
+  | 'سرپرست انبار (Stock Manager)'
+  | 'صندوقدار POS';
+
+export function checkRolePermission(
+  role: SystemRole,
+  permission:
+    | 'view_buying_cost'
+    | 'unlock_fiscal_year'
+    | 'manage_users_roles'
+    | 'post_journal'
+    | 'adjust_stock'
+    | 'export_database'
+): boolean {
+  if (role === 'ادمین کل (Super Admin)') return true;
+  switch (permission) {
+    case 'view_buying_cost':
+      return role === 'مدیر مالی (Accounts Manager)' || role === 'سرپرست انبار (Stock Manager)';
+    case 'unlock_fiscal_year':
+    case 'manage_users_roles':
+    case 'export_database':
+      return false; // Strictly Super Admin
+    case 'post_journal':
+      return role === 'مدیر مالی (Accounts Manager)';
+    case 'adjust_stock':
+      return role === 'سرپرست انبار (Stock Manager)';
+    default:
+      return false;
+  }
+}
+
+export function calculateFinancialStatements(
+  accounts: { category: 'دارایی' | 'بدهی' | 'سرمایه' | 'درآمد' | 'هزینه'; level: string; balance: number }[]
+): {
+  totalAssets: number;
+  totalLiabilities: number;
+  totalEquity: number;
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
+  equityPlusLiabilitiesAndProfit: number;
+  isBalanceSheetBalanced: boolean;
+} {
+  const groupAccounts = accounts.filter((a) => a.level === 'گروه');
+  const sumByCategory = (cat: 'دارایی' | 'بدهی' | 'سرمایه' | 'درآمد' | 'هزینه') =>
+    groupAccounts.filter((a) => a.category === cat).reduce((s, a) => s + a.balance, 0);
+
+  const totalAssets = sumByCategory('دارایی');
+  const totalLiabilities = sumByCategory('بدهی');
+  const totalEquity = sumByCategory('سرمایه');
+  const totalRevenue = sumByCategory('درآمد');
+  const totalExpenses = sumByCategory('هزینه');
+  const netProfit = totalRevenue - totalExpenses;
+  const equityPlusLiabilitiesAndProfit = totalLiabilities + totalEquity + netProfit;
+
+  return {
+    totalAssets,
+    totalLiabilities,
+    totalEquity,
+    totalRevenue,
+    totalExpenses,
+    netProfit,
+    equityPlusLiabilitiesAndProfit,
+    isBalanceSheetBalanced: Math.abs(totalAssets - equityPlusLiabilitiesAndProfit) < 1,
+  };
+}
+
+export function postDoubleEntryToAccounts<
+  T extends {
+    code: string;
+    category: 'دارایی' | 'بدهی' | 'سرمایه' | 'درآمد' | 'هزینه';
+    level: 'گروه' | 'کل' | 'معین' | 'تفصیلی';
+    parentCode?: string;
+    balance: number;
+  }
+>(accounts: T[], lines: { accountCode: string; debit: number; credit: number }[]): T[] {
+  // First update target accounts and their ancestor chain
+  const deltas = new Map<string, number>();
+
+  const byCode = new Map<string, T>();
+  accounts.forEach((a) => byCode.set(a.code, a));
+
+  for (const line of lines) {
+    const target = byCode.get(line.accountCode);
+    if (!target) continue;
+    const isDebitNature = target.category === 'دارایی' || target.category === 'هزینه';
+    const netChange = isDebitNature ? line.debit - line.credit : line.credit - line.debit;
+
+    // Apply delta to target and all its parent accounts up the tree
+    let curr: T | undefined = target;
+    const visited = new Set<string>();
+    while (curr && !visited.has(curr.code)) {
+      visited.add(curr.code);
+      deltas.set(curr.code, (deltas.get(curr.code) || 0) + netChange);
+      curr = curr.parentCode ? byCode.get(curr.parentCode) : undefined;
+    }
+  }
+
+  return accounts.map((acc) => {
+    const d = deltas.get(acc.code);
+    if (!d) return acc;
+    return { ...acc, balance: acc.balance + d };
+  });
+}
+
+

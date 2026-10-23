@@ -125,7 +125,7 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
               </p>
             </div>
             <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
-              {['همه', 'Peak Bar', 'Nasty Juice', 'Vaporesso', 'FaraPay Bundle'].map((b) => (
+              {['همه', 'Peak Bar', 'Nasty Juice', 'Vaporesso', 'Emkan Bundle'].map((b) => (
                 <button
                   key={b}
                   type="button"

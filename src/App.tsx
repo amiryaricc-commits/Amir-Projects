@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LayoutGrid,
   Calculator,
@@ -7,10 +7,9 @@ import {
   Package,
   Globe,
   Sliders,
-  Search,
+  ShieldAlert,
   ArrowUpLeft,
   CheckCircle2,
-  BarChart3,
 } from 'lucide-react';
 import {
   INITIAL_ACCOUNTS,
@@ -27,6 +26,7 @@ import {
   INITIAL_AUDIT_LOGS,
   AccountNode,
   SalesInvoiceRecord,
+  PurchaseInvoiceRecord,
   ChequeRecord,
   CostCenterRecord,
   FixedAssetRecord,
@@ -36,13 +36,20 @@ import {
   CustomFieldDefinition,
   AuditLogRecord,
 } from './data/erpSeedData';
-import { formatCurrency } from './utils/erpEngine';
+import {
+  formatCurrency,
+  calculateMovingAverageValuation,
+  SystemRole,
+  checkRolePermission,
+  postDoubleEntryToAccounts,
+} from './utils/erpEngine';
 import { AccountingModule } from './components/AccountingModule';
 import { SellingPosModule } from './components/SellingPosModule';
 import { CrmMarketingModule } from './components/CrmMarketingModule';
 import { InventoryWmsModule } from './components/InventoryWmsModule';
 import { SupportWebshopModule } from './components/SupportWebshopModule';
 import { FrappeCoreModule } from './components/FrappeCoreModule';
+import { AdminAndEnterpriseModule } from './components/AdminAndEnterpriseModule';
 
 type ActiveModuleId =
   | 'dashboard'
@@ -51,30 +58,109 @@ type ActiveModuleId =
   | 'crm'
   | 'inventory'
   | 'support_webshop'
-  | 'frappe_core';
+  | 'frappe_core'
+  | 'admin_enterprise';
+
+const STORAGE_KEY = 'emkan_erp_state_v2';
+
+function loadPersisted<T>(field: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed[field] !== undefined ? parsed[field] : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 export default function App() {
   const [activeModule, setActiveModule] = useState<ActiveModuleId>('dashboard');
-  const [accounts, setAccounts] = useState<AccountNode[]>(INITIAL_ACCOUNTS);
-  const [salesInvoices, setSalesInvoices] = useState<SalesInvoiceRecord[]>(INITIAL_SALES_INVOICES);
-  const [purchaseInvoices] = useState(INITIAL_PURCHASE_INVOICES);
-  const [cheques, setCheques] = useState<ChequeRecord[]>(INITIAL_CHEQUES);
-  const [costCenters, setCostCenters] = useState<CostCenterRecord[]>(INITIAL_COST_CENTERS);
-  const [fixedAssets, setFixedAssets] = useState<FixedAssetRecord[]>(INITIAL_FIXED_ASSETS);
+  const [activeRole, setActiveRole] = useState<SystemRole>(() =>
+    loadPersisted('activeRole', 'ادمین کل (Super Admin)')
+  );
+  const [fiscalYearLocked, setFiscalYearLocked] = useState<boolean>(() =>
+    loadPersisted('fiscalYearLocked', false)
+  );
+  const [accounts, setAccounts] = useState<AccountNode[]>(() =>
+    loadPersisted('accounts', INITIAL_ACCOUNTS)
+  );
+  const [salesInvoices, setSalesInvoices] = useState<SalesInvoiceRecord[]>(() =>
+    loadPersisted('salesInvoices', INITIAL_SALES_INVOICES)
+  );
+  const [purchaseInvoices, setPurchaseInvoices] = useState<PurchaseInvoiceRecord[]>(() =>
+    loadPersisted('purchaseInvoices', INITIAL_PURCHASE_INVOICES)
+  );
+  const [cheques, setCheques] = useState<ChequeRecord[]>(() =>
+    loadPersisted('cheques', INITIAL_CHEQUES)
+  );
+  const [costCenters, setCostCenters] = useState<CostCenterRecord[]>(() =>
+    loadPersisted('costCenters', INITIAL_COST_CENTERS)
+  );
+  const [fixedAssets, setFixedAssets] = useState<FixedAssetRecord[]>(() =>
+    loadPersisted('fixedAssets', INITIAL_FIXED_ASSETS)
+  );
   const [shareholders] = useState(INITIAL_SHAREHOLDERS);
-  const [inventoryItems, setInventoryItems] =
-    useState<InventoryItemRecord[]>(INITIAL_INVENTORY_ITEMS);
-  const [crmLeads, setCrmLeads] = useState<CrmLeadRecord[]>(INITIAL_CRM_LEADS);
-  const [warrantyTickets, setWarrantyTickets] =
-    useState<WarrantyTicketRecord[]>(INITIAL_WARRANTY_TICKETS);
-  const [customFields, setCustomFields] =
-    useState<CustomFieldDefinition[]>(INITIAL_CUSTOM_FIELDS);
-  const [auditLogs, setAuditLogs] = useState<AuditLogRecord[]>(INITIAL_AUDIT_LOGS);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItemRecord[]>(() =>
+    loadPersisted('inventoryItems', INITIAL_INVENTORY_ITEMS)
+  );
+  const [crmLeads, setCrmLeads] = useState<CrmLeadRecord[]>(() =>
+    loadPersisted('crmLeads', INITIAL_CRM_LEADS)
+  );
+  const [warrantyTickets, setWarrantyTickets] = useState<WarrantyTicketRecord[]>(() =>
+    loadPersisted('warrantyTickets', INITIAL_WARRANTY_TICKETS)
+  );
+  const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>(() =>
+    loadPersisted('customFields', INITIAL_CUSTOM_FIELDS)
+  );
+  const [auditLogs, setAuditLogs] = useState<AuditLogRecord[]>(() =>
+    loadPersisted('auditLogs', INITIAL_AUDIT_LOGS)
+  );
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showCommandModal, setShowCommandModal] = useState(false);
   const [commandSearch, setCommandSearch] = useState('');
   const [chartType, setChartType] = useState<'bar' | 'comparison'>('bar');
+
+  // Persist state automatically to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          activeRole,
+          fiscalYearLocked,
+          accounts,
+          salesInvoices,
+          purchaseInvoices,
+          cheques,
+          costCenters,
+          fixedAssets,
+          inventoryItems,
+          crmLeads,
+          warrantyTickets,
+          customFields,
+          auditLogs,
+        })
+      );
+    } catch {
+      // Ignore quota errors in private mode
+    }
+  }, [
+    activeRole,
+    fiscalYearLocked,
+    accounts,
+    salesInvoices,
+    purchaseInvoices,
+    cheques,
+    costCenters,
+    fixedAssets,
+    inventoryItems,
+    crmLeads,
+    warrantyTickets,
+    customFields,
+    auditLogs,
+  ]);
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
@@ -95,7 +181,7 @@ export default function App() {
         id: `aud-${Date.now()}`,
         timestamp: '۱۴۰۴/۰۸/۰۲ — اکنون',
         user: 'مهندس رضا نوادگان',
-        role: 'مدیر ارشد سیستم',
+        role: activeRole,
         docType,
         docId,
         fieldChanged,
@@ -106,10 +192,39 @@ export default function App() {
     ]);
   };
 
+  const handleResetDatabase = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setAccounts(INITIAL_ACCOUNTS);
+    setSalesInvoices(INITIAL_SALES_INVOICES);
+    setPurchaseInvoices(INITIAL_PURCHASE_INVOICES);
+    setCheques(INITIAL_CHEQUES);
+    setCostCenters(INITIAL_COST_CENTERS);
+    setFixedAssets(INITIAL_FIXED_ASSETS);
+    setInventoryItems(INITIAL_INVENTORY_ITEMS);
+    setCrmLeads(INITIAL_CRM_LEADS);
+    setWarrantyTickets(INITIAL_WARRANTY_TICKETS);
+    setCustomFields(INITIAL_CUSTOM_FIELDS);
+    setAuditLogs(INITIAL_AUDIT_LOGS);
+    setFiscalYearLocked(false);
+    setActiveRole('ادمین کل (Super Admin)');
+    triggerToast('دیتابیس سامانه «امکان» با موفقیت به داده‌های استاندارد اولیه بازنشانی شد.');
+  };
+
   // Handlers wired end-to-end across modules
   const handleAddAccount = (newAcc: AccountNode) => {
     setAccounts((prev) => [...prev, newAcc]);
     appendAuditLog('درخت حساب‌ها (Chart of Accounts)', newAcc.code, 'ایجاد سرفصل', '—', newAcc.name);
+  };
+
+  const handlePostJournalToLedger = (
+    lines: { accountCode: string; debit: number; credit: number }[]
+  ) => {
+    if (fiscalYearLocked) {
+      triggerToast('خطا: دوره مالی قفل شده است؛ امکان ثبت سند در دفتر کل وجود ندارد.');
+      return;
+    }
+    setAccounts((prev) => postDoubleEntryToAccounts(prev, lines));
+    appendAuditLog('سند روزنامه (Journal Entry)', `JE-${Date.now()}`, 'ثبت در دفتر کل', 'پیش‌نویس', 'ثبت قطعی');
   };
 
   const handleCreateSalesInvoice = (
@@ -117,29 +232,108 @@ export default function App() {
     deductSku?: string,
     deductQty?: number
   ) => {
-    setSalesInvoices((prev) => [newInv, ...prev]);
+    if (fiscalYearLocked) {
+      triggerToast('خطا: سال مالی بسته و قفل شده است؛ امکان صدور فاکتور وجود ندارد.');
+      return;
+    }
     if (deductSku && deductQty && deductQty > 0) {
+      const target = inventoryItems.find((i) => i.sku === deductSku);
+      if (target && target.stockQty < deductQty) {
+        triggerToast(
+          `خطای کسری موجودی انبار: موجودی کالای «${target.name}» (${target.stockQty} عدد) کمتر از تعداد درخواستی (${deductQty} عدد) است.`
+        );
+        return;
+      }
       setInventoryItems((prev) =>
-        prev.map((item) =>
-          item.sku === deductSku
-            ? { ...item, stockQty: Math.max(0, item.stockQty - deductQty) }
-            : item
-        )
+        prev.map((item) => {
+          if (item.sku === deductSku) {
+            return { ...item, stockQty: Math.max(0, item.stockQty - deductQty) };
+          }
+          // If the sold item is a Product Bundle, also deduct component SKUs
+          if (
+            target?.isBundle &&
+            (item.sku === 'PK60-MANGO-50' || item.sku === 'SALT-NASTY-30')
+          ) {
+            return { ...item, stockQty: Math.max(0, item.stockQty - deductQty) };
+          }
+          return item;
+        })
       );
     }
+    setSalesInvoices((prev) => [newInv, ...prev]);
+
+    // Auto-post Double-Entry Journal to General Ledger (Chart of Accounts)
+    const unpaid = Math.max(0, newInv.totalAmount - newInv.paidAmount);
+    const netRevenue = Math.max(0, newInv.totalAmount - newInv.taxAmount);
+    setAccounts((prev) =>
+      postDoubleEntryToAccounts(prev, [
+        { accountCode: '110101', debit: newInv.paidAmount, credit: 0 },
+        { accountCode: '1102', debit: unpaid, credit: 0 },
+        { accountCode: '4101', debit: 0, credit: netRevenue },
+        { accountCode: '2102', debit: 0, credit: newInv.taxAmount },
+      ])
+    );
+
     appendAuditLog(
       'فاکتور فروش (Sales Invoice)',
       newInv.invoiceNo,
-      'ثبت فاکتور جدید',
+      'ثبت فاکتور و سند دوبل دفتر کل',
       '۰ تومان',
       `${formatCurrency(newInv.totalAmount)} تومان`
     );
     triggerToast(
-      `فاکتور فروش ${newInv.invoiceNo} ثبت شد${deductSku ? ' و موجودی کالا از انبار کسر گردید' : ''}.`
+      `فاکتور فروش ${newInv.invoiceNo} ثبت شد، سند دوبل در دفتر کل صادر گردید${deductSku ? ' و موجودی از انبار کسر شد' : ''}.`
+    );
+  };
+
+  const handleCreatePurchaseInvoice = (
+    newPinv: PurchaseInvoiceRecord,
+    addSku: string,
+    addQty: number,
+    unitCost: number
+  ) => {
+    if (fiscalYearLocked) {
+      triggerToast('خطا: سال مالی بسته و قفل شده است؛ امکان ثبت فاکتور خرید وجود ندارد.');
+      return;
+    }
+    setPurchaseInvoices((prev) => [newPinv, ...prev]);
+    setInventoryItems((prev) =>
+      prev.map((item) => {
+        if (item.sku !== addSku) return item;
+        const mv = calculateMovingAverageValuation(
+          item.stockQty,
+          item.valuationRate,
+          addQty,
+          unitCost
+        );
+        return {
+          ...item,
+          stockQty: mv.newQty,
+          valuationRate: mv.newValuationRate,
+        };
+      })
+    );
+    // Auto-post Double-Entry Journal: Debit Inventory (1104), Credit Accounts Payable (2101)
+    setAccounts((prev) =>
+      postDoubleEntryToAccounts(prev, [
+        { accountCode: '1104', debit: newPinv.totalAmount, credit: 0 },
+        { accountCode: '2101', debit: 0, credit: newPinv.totalAmount },
+      ])
+    );
+    appendAuditLog(
+      'فاکتور خرید (Purchase Invoice)',
+      newPinv.billNo,
+      'افزایش موجودی، میانگین موزون و سند دفتر کل',
+      addSku,
+      `+${addQty} عدد (فی تمام‌شده: ${formatCurrency(unitCost)})`
+    );
+    triggerToast(
+      `فاکتور خرید ${newPinv.billNo} ثبت شد، موجودی انبار و دفتر کل به‌روز گردید و میانگین موزون بازمحاسبه شد.`
     );
   };
 
   const handleClearCheque = (id: string) => {
+    const targetChq = cheques.find((c) => c.id === id);
     setCheques((prev) =>
       prev.map((c) =>
         c.id === id
@@ -147,8 +341,17 @@ export default function App() {
           : c
       )
     );
-    appendAuditLog('مدیریت چک (Cheque)', id, 'وضعیت وصول', 'در جریان وصول', 'وصول‌شده (پاس‌شده)');
-    triggerToast('وضعیت چک صیادی به «وصول‌شده» تغییر یافت و سند بانکی آن ثبت شد.');
+    if (targetChq) {
+      // Clear cheque in GL: Debit Bank (110101), Credit Cheques in Transit (1103)
+      setAccounts((prev) =>
+        postDoubleEntryToAccounts(prev, [
+          { accountCode: '110101', debit: targetChq.amount, credit: 0 },
+          { accountCode: '1103', debit: 0, credit: targetChq.amount },
+        ])
+      );
+    }
+    appendAuditLog('مدیریت چک (Cheque)', id, 'وضعیت وصول و سند بانکی', 'در جریان وصول', 'وصول‌شده (پاس‌شده)');
+    triggerToast('وضعیت چک صیادی به «وصول‌شده» تغییر یافت و سند انتقال از اسناد در جریان وصول به بانک ثبت شد.');
   };
 
   const handleUpdateCostCenterPolicy = (id: string, policy: 'WARN' | 'STOP') => {
@@ -172,15 +375,29 @@ export default function App() {
     netTotal: number,
     customerName: string
   ) => {
-    // Deduct stock for each POS item
+    if (fiscalYearLocked) {
+      triggerToast('خطا: دوره مالی بسته و قفل شده است؛ امکان ثبت فیش صندوق وجود ندارد.');
+      return;
+    }
+    const hasBundle = cartItems.some((c) => c.sku === 'BUNDLE-STARTER-01');
+    const bundleQty = cartItems.find((c) => c.sku === 'BUNDLE-STARTER-01')?.qty || 0;
+
     setInventoryItems((prev) =>
       prev.map((invItem) => {
         const sold = cartItems.find((c) => c.sku === invItem.sku);
-        if (!sold) return invItem;
-        return { ...invItem, stockQty: Math.max(0, invItem.stockQty - sold.qty) };
+        let deduct = sold ? sold.qty : 0;
+        if (
+          hasBundle &&
+          (invItem.sku === 'PK60-MANGO-50' || invItem.sku === 'SALT-NASTY-30')
+        ) {
+          deduct += bundleQty;
+        }
+        if (deduct === 0) return invItem;
+        return { ...invItem, stockQty: Math.max(0, invItem.stockQty - deduct) };
       })
     );
-    // Create POS Sales Invoice record
+    const taxAmount = Math.round(netTotal * 0.09);
+    const netRev = Math.max(0, netTotal - taxAmount);
     const newPosInv: SalesInvoiceRecord = {
       id: `pos-inv-${Date.now()}`,
       invoiceNo: `POS-1404-${111 + salesInvoices.length}`,
@@ -195,11 +412,18 @@ export default function App() {
       status: 'پرداخت‌شده',
       totalAmount: netTotal,
       paidAmount: netTotal,
-      taxAmount: Math.round(netTotal * 0.09),
+      taxAmount,
       itemsSummary: cartItems.map((c) => `${c.qty}× ${c.name}`).join(' + '),
     };
     setSalesInvoices((prev) => [newPosInv, ...prev]);
-    triggerToast(`فیش صندوق ${newPosInv.invoiceNo} ثبت شد و موجودی انبار به‌روز گردید.`);
+    setAccounts((prev) =>
+      postDoubleEntryToAccounts(prev, [
+        { accountCode: '110102', debit: netTotal, credit: 0 },
+        { accountCode: '4101', debit: 0, credit: netRev },
+        { accountCode: '2102', debit: 0, credit: taxAmount },
+      ])
+    );
+    triggerToast(`فیش صندوق ${newPosInv.invoiceNo} ثبت شد، موجودی انبار و دفتر کل به‌روز گردید.`);
   };
 
   const handleAdvanceLeadStage = (id: string) => {
@@ -235,7 +459,7 @@ export default function App() {
       {
         id: `web-${Date.now()}`,
         invoiceNo: `WEB-1404-${200 + salesInvoices.length}`,
-        customerName: 'خریدار آنلاین وب‌شاپ (درگاه بانکی)',
+        customerName: 'خریدار آنلاین وب‌شاپ امکان (درگاه بانکی)',
         date: '۱۴۰۴/۰۸/۰۲',
         dueDate: '۱۴۰۴/۰۸/۰۲',
         branchDimension: 'فروشگاه اینترنتی',
@@ -255,11 +479,17 @@ export default function App() {
   };
 
   const handleExportFullData = () => {
+    if (!checkRolePermission(activeRole, 'export_database')) {
+      triggerToast('خطای دسترسی: فقط نقش «ادمین کل (Super Admin)» مجاز به خروجی گرفتن از کل دیتابیس است.');
+      return;
+    }
     const payload = {
       exportedAt: new Date().toISOString(),
-      system: 'FaraPay ERP (Odoo / ERPNext Persian Edition)',
+      system: 'Emkan ERP (امکان — سامانه جامع برنامه‌ریزی منابع سازمانی و حسابداری)',
+      activeRole,
       accountsCount: accounts.length,
       salesInvoicesCount: salesInvoices.length,
+      purchaseInvoicesCount: purchaseInvoices.length,
       inventoryItemsCount: inventoryItems.length,
       customFields,
     };
@@ -267,10 +497,10 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'farapay-erp-backup.json';
+    a.download = 'emkan-erp-backup.json';
     a.click();
     URL.revokeObjectURL(url);
-    triggerToast('فایل خروجی کل دیتابیس (JSON Backup) با موفقیت تولید و دانلود شد.');
+    triggerToast('فایل خروجی کل دیتابیس امکان (JSON Backup) با موفقیت دانلود شد.');
   };
 
   // Computed Real-time Executive Metrics
@@ -294,14 +524,14 @@ export default function App() {
   }[] = [
     {
       id: 'dashboard',
-      label: 'میزکار و داشبورد کلان',
-      sub: 'نمای کلی، نمودارها و لانچر Odoo',
+      label: 'میزکار و داشبورد امکان',
+      sub: 'نمای کلی، نمودارها و لانچر ماژول‌ها',
       icon: LayoutGrid,
     },
     {
       id: 'accounting',
       label: '۱. حسابداری و مالی',
-      sub: 'دفتر کل، اسناد دوبل، چک و دارایی',
+      sub: 'دفتر کل، ترازنامه، اسناد دوبل و چک',
       icon: Calculator,
     },
     {
@@ -334,12 +564,20 @@ export default function App() {
       sub: 'فرم‌ساز، گردش کار، دسترسی و API',
       icon: Sliders,
     },
+    {
+      id: 'admin_enterprise',
+      label: 'ادمین کل، منابع انسانی و ممیزی',
+      sub: 'دسترسی Super Admin، ماژول ۶/۷/۸ و کم‌و‌کسر',
+      icon: ShieldAlert,
+    },
   ];
 
   const allDocTypesCatalog = [
     { title: 'درخت حساب‌ها (Chart of Accounts)', mod: 'accounting' as ActiveModuleId, cat: 'حسابداری' },
+    { title: 'تراز آزمایشی، صورت سود و زیان و ترازنامه', mod: 'accounting' as ActiveModuleId, cat: 'حسابداری' },
     { title: 'سند حسابداری روزنامه (Journal Entry)', mod: 'accounting' as ActiveModuleId, cat: 'حسابداری' },
     { title: 'فاکتور فروش و اقساط (Sales Invoice)', mod: 'accounting' as ActiveModuleId, cat: 'حسابداری' },
+    { title: 'فاکتور خرید و میانگین موزون (Purchase Invoice)', mod: 'accounting' as ActiveModuleId, cat: 'خرید' },
     { title: 'مدیریت چک صیادی و تطبیق پرداخت', mod: 'accounting' as ActiveModuleId, cat: 'خزانه‌داری' },
     { title: 'کنترل بودجه و درخت مراکز هزینه', mod: 'accounting' as ActiveModuleId, cat: 'بودجه' },
     { title: 'دارایی‌های ثابت و استهلاک خودکار', mod: 'accounting' as ActiveModuleId, cat: 'اموال' },
@@ -351,6 +589,7 @@ export default function App() {
     { title: 'انبارگردانی و نقطه سفارش خودکار', mod: 'inventory' as ActiveModuleId, cat: 'انبار WMS' },
     { title: 'فروشگاه آنلاین یکپارچه و استعلام گارانتی', mod: 'support_webshop' as ActiveModuleId, cat: 'وب‌شاپ' },
     { title: 'ساخت فیلد سفارشی و طراح گردش کار (Frappe Core)', mod: 'frappe_core' as ActiveModuleId, cat: 'فریم‌ورک' },
+    { title: 'مرکز فرماندهی ادمین کل، حقوق و دستمزد (۶)، تولید (۷) و ممیزی سیستم', mod: 'admin_enterprise' as ActiveModuleId, cat: 'ادمین کل' },
   ];
 
   const filteredDocTypes = allDocTypesCatalog.filter(
@@ -370,7 +609,7 @@ export default function App() {
           }}
           className="text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0"
         >
-          فراپِی ERP
+          امکان ERP
         </a>
 
         {/* Zone 2: 5 concise single-line navigation links */}
@@ -416,12 +655,12 @@ export default function App() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveModule('frappe_core')}
+            onClick={() => setActiveModule('admin_enterprise')}
             className={`hover:text-slate-900 transition-colors whitespace-nowrap shrink-0 ${
-              activeModule === 'frappe_core' ? 'text-indigo-700 underline underline-offset-8' : ''
+              activeModule === 'admin_enterprise' ? 'text-indigo-700 underline underline-offset-8' : ''
             }`}
           >
-            موتور فریم‌ورک
+            ادمین کل و ممیزی
           </button>
         </nav>
 
@@ -454,40 +693,64 @@ export default function App() {
         {/* Sidebar Navigation */}
         <aside
           aria-label="منوی دپارتمان‌های سازمانی"
-          className="w-full lg:w-68 bg-white border-b lg:border-b-0 lg:border-l border-slate-200 p-4 shrink-0 no-print"
+          className="w-full lg:w-68 bg-white border-b lg:border-b-0 lg:border-l border-slate-200 p-4 shrink-0 no-print space-y-4"
         >
-          <div className="text-xs font-bold text-slate-400 px-2 mb-2">
-            دپارتمان‌ها و ماژول‌های ERPNext / Odoo
+          {/* Active Role Badge & Quick Switcher in Sidebar */}
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+            <div className="text-[11px] text-slate-500 font-medium">
+              سطح دسترسی فعال در سامانه امکان:
+            </div>
+            <select
+              aria-label="تغییر سطح دسترسی کاربر"
+              value={activeRole}
+              onChange={(e) => {
+                const nextRole = e.target.value as SystemRole;
+                setActiveRole(nextRole);
+                triggerToast(`سطح دسترسی فعال به «${nextRole}» تغییر یافت.`);
+              }}
+              className="w-full px-2.5 py-1.5 text-xs font-bold text-indigo-900 bg-indigo-50 border border-indigo-200 rounded-lg"
+            >
+              <option value="ادمین کل (Super Admin)">ادمین کل (Super Admin)</option>
+              <option value="مدیر مالی (Accounts Manager)">مدیر مالی (Accounts Manager)</option>
+              <option value="سرپرست انبار (Stock Manager)">سرپرست انبار (Stock Manager)</option>
+              <option value="صندوقدار POS">صندوقدار POS (محدود)</option>
+            </select>
           </div>
-          <div className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-x-visible pb-1 lg:pb-0">
-            {sidebarItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeModule === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActiveModule(item.id)}
-                  className={`flex items-start gap-3 p-2.5 rounded-xl text-right transition-colors shrink-0 lg:w-full ${
-                    isActive
-                      ? 'bg-indigo-50/90 text-indigo-950 border border-indigo-200/80'
-                      : 'text-slate-700 hover:bg-slate-100 border border-transparent'
-                  }`}
-                >
-                  <Icon
-                    className={`w-4 h-4 mt-0.5 shrink-0 ${
-                      isActive ? 'text-indigo-600' : 'text-slate-500'
+
+          <div>
+            <div className="text-xs font-bold text-slate-400 px-2 mb-2">
+              دپارتمان‌ها و ماژول‌های سامانه امکان
+            </div>
+            <div className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-x-visible pb-1 lg:pb-0">
+              {sidebarItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeModule === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setActiveModule(item.id)}
+                    className={`flex items-start gap-3 p-2.5 rounded-xl text-right transition-colors shrink-0 lg:w-full ${
+                      isActive
+                        ? 'bg-indigo-50/90 text-indigo-950 border border-indigo-200/80'
+                        : 'text-slate-700 hover:bg-slate-100 border border-transparent'
                     }`}
-                  />
-                  <div className="min-w-0">
-                    <div className="text-xs font-bold whitespace-nowrap">{item.label}</div>
-                    <div className="text-[11px] text-slate-500 truncate hidden lg:block mt-0.5">
-                      {item.sub}
+                  >
+                    <Icon
+                      className={`w-4 h-4 mt-0.5 shrink-0 ${
+                        isActive ? 'text-indigo-600' : 'text-slate-500'
+                      }`}
+                    />
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold whitespace-nowrap">{item.label}</div>
+                      <div className="text-[11px] text-slate-500 truncate hidden lg:block mt-0.5">
+                        {item.sub}
+                      </div>
                     </div>
-                  </div>
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </aside>
 
@@ -499,29 +762,29 @@ export default function App() {
               <div className="bg-white p-6 rounded-xl border border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="space-y-1">
                   <div className="text-xs text-indigo-700 font-semibold">
-                    معماری یکپارچه Odoo 18 & ERPNext Frappe · سال مالی ۱۴۰۴
+                    سامانه جامع سازمانی «امکان (Emkan ERP)» · فونت وزیر · دسترسی فعال: {activeRole}
                   </div>
                   <h1 className="text-2xl font-bold text-slate-900">
-                    میزکار جامع برنامه‌ریزی منابع سازمانی، حسابداری دوبل و لجستیک هوشمند
+                    میزکار جامع حسابداری دوبل، صندوق فروشگاهی، انبارداری پیشرفته و اتوماسیون امکان
                   </h1>
                   <p className="text-xs text-slate-600 max-w-3xl leading-relaxed">
-                    تمامی ۱۱ زیرسیستم اصلی شامل حسابداری ۵ سطحی، فروش اقساطی، صندوق لمسی آفلاین (POS)، قیف CRM، انبارداری سریال/بچ و سرشکن هزینه گمرک، وب‌شاپ یکپارچه و موتور نرم‌افزارساز Frappe به صورت زنده به یکدیگر متصل هستند.
+                    پوشش کامل تمامی ۱۱ دپارتمان (شامل حسابداری ۵ سطحی و ترازنامه، فروش اقساطی و POS آفلاین، CRM، انبارداری سریال/بچ و گمرک، منابع انسانی و حقوق، تولید BOM، وب‌شاپ و موتور Frappe) همراه با ذخیره‌سازی خودکار و مدیریت دسترسی ادمین کل.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2.5 shrink-0">
                   <button
                     type="button"
-                    onClick={() => setActiveModule('selling_pos')}
+                    onClick={() => setActiveModule('admin_enterprise')}
                     className="px-4 py-2.5 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 whitespace-nowrap"
                   >
-                    ورود به صندوق فروشگاهی (POS)
+                    پنل ادمین کل و گزارش کم‌و‌کسر
                   </button>
                   <button
                     type="button"
-                    onClick={() => setActiveModule('accounting')}
+                    onClick={() => setActiveModule('selling_pos')}
                     className="px-4 py-2.5 text-xs font-semibold text-slate-800 bg-slate-100 rounded-lg hover:bg-slate-200 whitespace-nowrap"
                   >
-                    ثبت سند و فاکتور جدید
+                    ورود به صندوق فروشگاهی (POS)
                   </button>
                 </div>
               </div>
@@ -561,7 +824,9 @@ export default function App() {
                 <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-1">
                   <div className="text-xs text-slate-500">ارزش موجودی انبار (میانگین موزون)</div>
                   <div className="text-lg font-bold font-mono tabular-nums text-slate-900">
-                    {formatCurrency(totalInventoryValuation)} تومان
+                    {checkRolePermission(activeRole, 'view_buying_cost')
+                      ? `${formatCurrency(totalInventoryValuation)} تومان`
+                      : '🔒 مخفی (ویژه ادمین/مالی)'}
                   </div>
                   <div className="text-xs text-slate-500">
                     {inventoryItems.length} کد کالای فعال دارای سریال و بچ
@@ -574,7 +839,7 @@ export default function App() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-base font-bold text-slate-900">
-                      لانچر سریع ماژول‌ها و دایرةالمعارف کامل اسناد (Odoo & ERPNext DocTypes)
+                      لانچر سریع ماژول‌ها و دایرةالمعارف کامل اسناد سامانه «امکان»
                     </h2>
                     <p className="text-xs text-slate-500 mt-0.5">
                       برای ورود مستقیم به هر زیرسیستم و بررسی اسناد تخصصی روی کارت مربوطه کلیک کنید
@@ -586,9 +851,9 @@ export default function App() {
                   {[
                     {
                       id: 'accounting' as ActiveModuleId,
-                      title: '۱. حسابداری و مدیریت مالی',
+                      title: '۱. حسابداری، ترازنامه و مدیریت مالی',
                       features:
-                        'درخت حساب‌ها · ابعاد تحلیلی · سند روزنامه و قالب‌ها · فاکتور اقساطی ۳۰/۳۵/۳۵ · چک صیادی · کنترل بودجه · دارایی ثابت و سهام',
+                        'درخت حساب‌ها · تراز آزمایشی و سود و زیان · سند روزنامه · فاکتور اقساطی ۳۰/۳۵/۳۵ · چک صیادی · کنترل بودجه · دارایی ثابت و سهام',
                       metric: `${accounts.length} سرفصل حساب کل و معین`,
                     },
                     {
@@ -620,11 +885,11 @@ export default function App() {
                       metric: `${warrantyTickets.length} پرونده گارانتی فعال`,
                     },
                     {
-                      id: 'frappe_core' as ActiveModuleId,
-                      title: '۱۱. موتور فریم‌ورک و اتوماسیون (Frappe Core)',
+                      id: 'admin_enterprise' as ActiveModuleId,
+                      title: '۶، ۷، ۸ و ۱۱. ادمین کل، منابع انسانی، تولید و ممیزی',
                       features:
-                        'ساخت فیلد و فرم بدون کدنویسی · طراح گردش کار تاییدات · اعلان تلگرام · طراح چاپ · دسترسی سطح فیلد · لاگ امنیتی و وب‌هوک n8n',
-                      metric: `${customFields.length} فیلد سفارشی + Audit Trail`,
+                        'کنترل دسترسی ادمین کل (Super Admin) · فیش حقوقی (۶) · فرمول تولید BOM (۷) · پروژه‌ها (۸) · موتور Frappe (۱۱) · گزارش کم و کسرها',
+                      metric: `دسترسی: ${activeRole}`,
                     },
                   ].map((card) => (
                     <div
@@ -758,11 +1023,16 @@ export default function App() {
 
           {activeModule === 'accounting' && (
             <AccountingModule
+              activeRole={activeRole}
+              fiscalYearLocked={fiscalYearLocked}
+              onToggleFiscalYearLock={() => setFiscalYearLocked((v) => !v)}
               accounts={accounts}
               onAddAccount={handleAddAccount}
+              onPostJournal={handlePostJournalToLedger}
               salesInvoices={salesInvoices}
               onCreateSalesInvoice={handleCreateSalesInvoice}
               purchaseInvoices={purchaseInvoices}
+              onCreatePurchaseInvoice={handleCreatePurchaseInvoice}
               cheques={cheques}
               onClearCheque={handleClearCheque}
               costCenters={costCenters}
@@ -794,6 +1064,7 @@ export default function App() {
 
           {activeModule === 'inventory' && (
             <InventoryWmsModule
+              activeRole={activeRole}
               items={inventoryItems}
               onUpdateItemStock={handleUpdateItemStock}
               onAddGeneratedVariants={(newVars) =>
@@ -823,6 +1094,16 @@ export default function App() {
               onShowToast={triggerToast}
             />
           )}
+
+          {activeModule === 'admin_enterprise' && (
+            <AdminAndEnterpriseModule
+              activeRole={activeRole}
+              onChangeRole={setActiveRole}
+              onResetDatabase={handleResetDatabase}
+              onExportDatabase={handleExportFullData}
+              onShowToast={triggerToast}
+            />
+          )}
         </main>
       </div>
 
@@ -837,20 +1118,20 @@ export default function App() {
           <div className="bg-white rounded-xl border border-slate-200 max-w-lg w-full p-5 space-y-4 shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h3 id="doctype-search-title" className="text-sm font-bold text-slate-900">
-                جستجوی سریع اسناد و ماژول‌ها (Frappe Awesomebar)
+                جستجوی سریع اسناد و ماژول‌های سامانه امکان (Awesomebar)
               </h3>
               <button
                 type="button"
                 onClick={() => setShowCommandModal(false)}
                 className="text-xs text-slate-500 hover:text-slate-900 px-2 py-1"
               >
-                بستن ✕
+                بستن پنجره
               </button>
             </div>
             <input
               type="text"
               aria-label="جستجوی نام سند یا ماژول"
-              placeholder="نام سند را بنویسید (مثلاً چک، فاکتور، انبارگردانی، گمرک، POS)..."
+              placeholder="نام سند را بنویسید (مثلاً ترازنامه، چک، فاکتور، انبارگردانی، ادمین کل)..."
               value={commandSearch}
               onChange={(e) => setCommandSearch(e.target.value)}
               className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg"

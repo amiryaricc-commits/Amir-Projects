@@ -10,6 +10,9 @@ import {
   calculatePosCartTotals,
   calculateStockReconciliation,
   generateItemVariants,
+  checkRolePermission,
+  calculateFinancialStatements,
+  postDoubleEntryToAccounts,
 } from './erpEngine';
 
 test('validateJournalEntry enforces double-entry debit === credit rule', () => {
@@ -88,10 +91,6 @@ test('calculatePosCartTotals handles stepped discount, loyalty, tax and commissi
     taxPercent: 10,
     partnerCommissionPercent: 5,
   });
-  // Gross: 5,000,000 -> 5% stepped discount = 250,000 -> 4,750,000
-  // Coupon 10% of 4,750,000 = 475,000 -> 4,275,000
-  // Loyalty = 100,000 -> taxableBase = 4,175,000
-  // Tax 10% = 417,500 -> Net = 4,592,500
   assert.equal(totals.grossTotal, 5000000);
   assert.equal(totals.pricingRuleDiscount, 250000);
   assert.equal(totals.couponDiscount, 475000);
@@ -114,3 +113,50 @@ test('generateItemVariants creates SKU combinations from attributes', () => {
   assert.equal(variants.length, 4);
   assert.equal(variants[0].sku, 'PK60-V11');
 });
+
+test('checkRolePermission grants full access to Super Admin and restricts Cashier', () => {
+  assert.equal(checkRolePermission('ادمین کل (Super Admin)', 'unlock_fiscal_year'), true);
+  assert.equal(checkRolePermission('ادمین کل (Super Admin)', 'view_buying_cost'), true);
+  assert.equal(checkRolePermission('صندوقدار POS', 'view_buying_cost'), false);
+  assert.equal(checkRolePermission('صندوقدار POS', 'export_database'), false);
+});
+
+test('calculateFinancialStatements computes P&L and Balance Sheet equation accurately', () => {
+  const st = calculateFinancialStatements([
+    { category: 'دارایی', level: 'گروه', balance: 4850000000 },
+    { category: 'بدهی', level: 'گروه', balance: 960000000 },
+    { category: 'سرمایه', level: 'گروه', balance: 3000000000 },
+    { category: 'درآمد', level: 'گروه', balance: 2150000000 },
+    { category: 'هزینه', level: 'گروه', balance: 1260000000 },
+  ]);
+  assert.equal(st.netProfit, 890000000);
+  assert.equal(st.equityPlusLiabilitiesAndProfit, 4850000000);
+  assert.equal(st.isBalanceSheetBalanced, true);
+});
+
+test('postDoubleEntryToAccounts rolls up leaf debit/credit changes to parent group accounts and preserves Balance Sheet equality', () => {
+  const sampleAccounts = [
+    { code: '1000', category: 'دارایی' as const, level: 'گروه' as const, balance: 1000 },
+    { code: '1101', category: 'دارایی' as const, level: 'معین' as const, parentCode: '1000', balance: 1000 },
+    { code: '2000', category: 'بدهی' as const, level: 'گروه' as const, balance: 200 },
+    { code: '3000', category: 'سرمایه' as const, level: 'گروه' as const, balance: 800 },
+    { code: '4000', category: 'درآمد' as const, level: 'گروه' as const, balance: 0 },
+    { code: '4101', category: 'درآمد' as const, level: 'معین' as const, parentCode: '4000', balance: 0 },
+    { code: '5000', category: 'هزینه' as const, level: 'گروه' as const, balance: 0 },
+  ];
+
+  const updated = postDoubleEntryToAccounts(sampleAccounts, [
+    { accountCode: '1101', debit: 500, credit: 0 },
+    { accountCode: '4101', debit: 0, credit: 500 },
+  ]);
+
+  assert.equal(updated.find((a) => a.code === '1101')?.balance, 1500);
+  assert.equal(updated.find((a) => a.code === '1000')?.balance, 1500);
+  assert.equal(updated.find((a) => a.code === '4101')?.balance, 500);
+  assert.equal(updated.find((a) => a.code === '4000')?.balance, 500);
+
+  const st = calculateFinancialStatements(updated);
+  assert.equal(st.isBalanceSheetBalanced, true);
+});
+
+

@@ -57,8 +57,8 @@ export const FrappeCoreModule: React.FC<FrappeCoreModuleProps> = ({
     `# Frappe Server Script (Before Save: Sales Invoice)
 if doc.grand_total > 5000000:
     frappe.sendmail(
-        recipients=["telegram_webhook@farapay.ir"],
-        message=f"هشدار فاکتور کلان: {doc.name} به مبلغ {doc.grand_total} تومان ثبت شد."
+        recipients=["telegram_webhook@emkan.ir"],
+        message=f"هشدار فاکتور کلان امکان: {doc.name} به مبلغ {doc.grand_total} تومان ثبت شد."
     )
     doc.custom_vip_priority = 1`
   );
@@ -501,12 +501,12 @@ if doc.grand_total > 5000000:
               {[
                 {
                   name: 'وب‌هوک اتوماسیون n8n (ارسال آنی فاکتورهای جدید)',
-                  endpoint: 'https://n8n.farapay.ir/webhook/erpnext-sales-invoice',
+                  endpoint: 'https://n8n.emkan.ir/webhook/erpnext-sales-invoice',
                   event: 'on_submit (Sales Invoice)',
                 },
                 {
                   name: 'همگام‌سازی دوطرفه موجودی و قیمت با سایت وردپرسی (WooCommerce REST)',
-                  endpoint: 'https://shop.farapay.ir/wp-json/wc/v3/products/batch',
+                  endpoint: 'https://shop.emkan.ir/wp-json/wc/v3/products/batch',
                   event: 'on_update (Item & Bin Stock)',
                 },
                 {

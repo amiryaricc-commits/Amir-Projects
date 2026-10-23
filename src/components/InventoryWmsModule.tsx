@@ -15,9 +15,12 @@ import {
   allocateLandedCost,
   calculateStockReconciliation,
   generateItemVariants,
+  SystemRole,
+  checkRolePermission,
 } from '../utils/erpEngine';
 
 interface InventoryWmsModuleProps {
+  activeRole: SystemRole;
   items: InventoryItemRecord[];
   onUpdateItemStock: (sku: string, newPhysicalQty: number) => void;
   onAddGeneratedVariants: (newItems: InventoryItemRecord[]) => void;
@@ -25,6 +28,7 @@ interface InventoryWmsModuleProps {
 }
 
 export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
+  activeRole,
   items,
   onUpdateItemStock,
   onAddGeneratedVariants,
@@ -264,7 +268,9 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
                         </div>
                       </td>
                       <td className="py-2.5 px-3 font-mono tabular-nums text-left text-slate-700">
-                        {formatCurrency(item.valuationRate)} ت
+                        {checkRolePermission(activeRole, 'view_buying_cost')
+                          ? `${formatCurrency(item.valuationRate)} ت`
+                          : '🔒 مخفی (عدم دسترسی)'}
                       </td>
                       <td className="py-2.5 px-3 font-mono tabular-nums font-bold text-left text-slate-900">
                         {formatCurrency(item.retailPrice)} ت

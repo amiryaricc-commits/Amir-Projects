@@ -1,19 +1,19 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Vazirmatn', system-ui, -apple-system, sans-serif;
-  --font-mono: 'Vazirmatn', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Vazir', 'Vazirmatn', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Vazir', 'Vazirmatn', system-ui, -apple-system, sans-serif;
 }
 
 @layer base {
-  body {
-    font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif;
+  body, button, input, select, textarea {
+    font-family: 'Vazir', 'Vazirmatn', system-ui, -apple-system, sans-serif;
     direction: rtl;
   }
 }
 
 .font-mono, .tabular-nums {
-  font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif !important;
+  font-family: 'Vazir', 'Vazirmatn', system-ui, -apple-system, sans-serif !important;
   font-variant-numeric: tabular-nums;
 }
 
