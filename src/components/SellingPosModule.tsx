@@ -4,13 +4,10 @@ import {
   Barcode,
   Printer,
   Gift,
-  Award,
   Users,
   FileText,
   Wifi,
   WifiOff,
-  CheckCircle2,
-  Trash2,
   Plus,
   Minus,
 } from 'lucide-react';
@@ -22,7 +19,6 @@ interface SellingPosModuleProps {
   onCompletePosSale: (
     cartItems: { sku: string; name: string; qty: number; unitPrice: number }[],
     netTotal: number,
-    taxAmount: number,
     customerName: string
   ) => void;
   onShowToast: (msg: string) => void;
@@ -59,7 +55,6 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
   const [couponInput, setCouponInput] = useState('EMKAN10');
   const [appliedCouponPct, setAppliedCouponPct] = useState(10);
   const [redeemPoints, setRedeemPoints] = useState(150); // 150,000 Toman
-  const [salesPartnerCode, setSalesPartnerCode] = useState('PRT-TEH-09 (معرف: دکتر کاوه - ۵٪)');
   const [showThermalReceipt, setShowThermalReceipt] = useState(false);
   const [shiftClosed, setShiftClosed] = useState(false);
   const [posShiftTotalSales, setPosShiftTotalSales] = useState(48500000);
@@ -100,7 +95,6 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
     priceListMultiplier,
     couponPercent: appliedCouponPct,
     redeemLoyaltyPoints: redeemPoints,
-    taxPercent: 10,
     partnerCommissionPercent: 5,
   });
 
@@ -136,7 +130,6 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
         unitPrice: Math.round(c.item.retailPrice * priceListMultiplier),
       })),
       posTotals.netPayable,
-      posTotals.taxAmount,
       selectedCustomer
     );
     setPosShiftTotalSales((s) => s + posTotals.netPayable);
@@ -153,16 +146,16 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">
-            صندوق فروشگاهی لمسی و پیش‌فاکتورها
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200">
+        <div className="space-y-1">
+          <h2 className="text-lg font-bold text-slate-900">
+            صندوق فروشگاهی و پیش‌فاکتورها
           </h2>
-          <p className="text-sm text-slate-600 mt-1">
-            پیش‌فاکتور، رزرو موجودی سفارش فروش، صندوق لمسی آفلاین، لیست‌های قیمت چندگانه، موتور پروموشن، باشگاه مشتریان و پورسانت
+          <p className="text-sm text-slate-500">
+            فروش سریع حضوری، مدیریت پیش‌فاکتورها، باشگاه مشتریان و محاسبه پورسانت فروشندگان
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5 shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -178,11 +171,11 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
                 : 'bg-emerald-50 border-emerald-200 text-emerald-800'
             }`}
           >
-            {offlineModeSim ? <WifiOff className="w-4 h-4" /> : <Wifi className="w-4 h-4" />}
+            {offlineModeSim ? <WifiOff className="w-4 h-4 shrink-0" /> : <Wifi className="w-4 h-4 shrink-0" />}
             <span>
               {offlineModeSim
-                ? `حالت آفلاین فعال (صف همگام‌سازی: ${offlineQueueCount})`
-                : 'صندوق آنلاین و متصل به انبار'}
+                ? `حالت آفلاین (صف: ${offlineQueueCount})`
+                : 'متصل به انبار مرکزی'}
             </span>
           </button>
 
@@ -198,17 +191,17 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
             }}
             className="px-3.5 py-2 text-xs font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg whitespace-nowrap shrink-0"
           >
-            {shiftClosed ? 'بازگشایی شیفت جدید صندوق' : 'بستن دخل و شیفت صندوق'}
+            {shiftClosed ? 'بازگشایی شیفت صندوق' : 'بستن شیفت صندوق'}
           </button>
         </div>
       </div>
 
       {/* Sub-tabs */}
-      <div className="flex items-center gap-1.5 p-1.5 bg-slate-200/70 rounded-xl w-fit">
+      <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-200/70 rounded-xl w-fit">
         {[
-          { id: 'pos', label: 'صندوق فروشگاهی لمسی و آفلاین', icon: ShoppingBag },
+          { id: 'pos', label: 'صندوق فروشگاهی', icon: ShoppingBag },
           { id: 'quotations', label: 'پیش‌فاکتور و سفارش فروش', icon: FileText },
-          { id: 'commissions', label: 'درخت فروشندگان، تارگت و پورسانت معرف‌ها', icon: Users },
+          { id: 'commissions', label: 'فروشندگان و پورسانت', icon: Users },
         ].map((t) => {
           const Icon = t.icon;
           return (
@@ -222,7 +215,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-4 h-4 shrink-0" />
               <span>{t.label}</span>
             </button>
           );
@@ -405,7 +398,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
               </div>
             )}
 
-            {/* Coupon, Loyalty Redemption & Partner Code */}
+            {/* Coupon & Loyalty Redemption */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-slate-200 text-xs">
               <div>
                 <label className="block text-slate-600 mb-1">کد تخفیف / کارت هدیه</label>
@@ -441,7 +434,7 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
               </div>
             </div>
 
-            {/* Breakdown Summary */}
+            {/* Breakdown Summary (Tax Completely Removed) */}
             <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5 text-xs">
               <div className="flex justify-between text-slate-600">
                 <span>جمع کل اقلام ({priceListType === 'retail' ? 'قیمت تکی' : 'قیمت همکاری/عمده'}):</span>
@@ -456,10 +449,6 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
                 <span className="font-mono tabular-nums">
                   -{formatCurrency(posTotals.couponDiscount + posTotals.loyaltyDiscount)} تومان
                 </span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>مالیات بر ارزش افزوده (۱۰٪):</span>
-                <span className="font-mono tabular-nums">+{formatCurrency(posTotals.taxAmount)} تومان</span>
               </div>
               <div className="flex justify-between text-indigo-700 pt-1 border-t border-slate-200">
                 <span>امتیاز جدید باشگاه مشتریان · پورسانت معرف:</span>
@@ -698,10 +687,6 @@ export const SellingPosModule: React.FC<SellingPosModuleProps> = ({
                 <span>
                   -{formatCurrency(posTotals.pricingRuleDiscount + posTotals.couponDiscount + posTotals.loyaltyDiscount)} ت
                 </span>
-              </div>
-              <div className="flex justify-between">
-                <span>ارزش افزوده (۱۰٪):</span>
-                <span>+{formatCurrency(posTotals.taxAmount)} ت</span>
               </div>
               <div className="flex justify-between font-bold text-slate-900 pt-1 border-t border-slate-300">
                 <span>پرداخت‌شده کارتخوان:</span>

@@ -1,17 +1,16 @@
 import React, { useState } from 'react';
 import {
-  Wrench,
   Globe,
   UserCheck,
   FileEdit,
+  CreditCard,
+  Download,
 } from 'lucide-react';
-import { InventoryItemRecord, WarrantyTicketRecord, SalesInvoiceRecord } from '../data/erpSeedData';
+import { InventoryItemRecord, SalesInvoiceRecord } from '../data/erpSeedData';
 import { formatCurrency } from '../utils/erpEngine';
 
 interface SupportWebshopModuleProps {
   inventoryItems: InventoryItemRecord[];
-  warrantyTickets: WarrantyTicketRecord[];
-  onAddWarrantyTicket: (ticket: WarrantyTicketRecord) => void;
   salesInvoices: SalesInvoiceRecord[];
   onWebshopOrderCheckout: (item: InventoryItemRecord) => void;
   onShowToast: (msg: string) => void;
@@ -19,20 +18,14 @@ interface SupportWebshopModuleProps {
 
 export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
   inventoryItems,
-  warrantyTickets,
-  onAddWarrantyTicket,
+  salesInvoices,
   onWebshopOrderCheckout,
   onShowToast,
 }) => {
-  const [activeTab, setActiveTab] = useState<'webshop' | 'warranty' | 'portal' | 'builder'>('webshop');
+  const [activeTab, setActiveTab] = useState<'webshop' | 'portal' | 'builder'>('webshop');
 
   // Webshop Filter
   const [brandFilter, setBrandFilter] = useState('همه');
-
-  // Serial Lookup & Warranty Claim
-  const [serialQuery, setSerialQuery] = useState('SN-PK60-99101');
-  const [newClaimCustomer, setNewClaimCustomer] = useState('');
-  const [newClaimIssue, setNewClaimIssue] = useState('');
 
   // Web Form Submission State
   const [agencyApplicant, setAgencyApplicant] = useState('');
@@ -43,50 +36,26 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
     brandFilter === 'همه' ? true : i.brand === brandFilter
   );
 
-  const matchedSerialItem = inventoryItems.find((i) =>
-    i.serialNumbers.some((sn) => sn.toLowerCase() === serialQuery.trim().toLowerCase())
-  );
-
-  const handleWarrantySubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newClaimCustomer.trim() || !newClaimIssue.trim()) return;
-    onAddWarrantyTicket({
-      id: `war-${Date.now()}`,
-      ticketNo: `SUP-1404-0${43 + warrantyTickets.length}`,
-      serialNo: serialQuery || 'SN-PK60-99102',
-      customerName: newClaimCustomer.trim(),
-      itemName: matchedSerialItem?.name || 'پاد هوشمند پیک‌بار ۶۰۰۰۰',
-      issueDescription: newClaimIssue.trim(),
-      warrantyExpiry: '۱۴۰۵/۰۶/۳۰',
-      status: 'پذیرش در تعمیرگاه',
-      repairCost: 0,
-    });
-    setNewClaimCustomer('');
-    setNewClaimIssue('');
-    onShowToast('پرونده پذیرش گارانتی و تعمیرات با موفقیت ثبت شد.');
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">
-            پشتیبانی، گارانتی، فروشگاه اینترنتی و پورتال مشتریان
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200">
+        <div className="space-y-1">
+          <h2 className="text-lg font-bold text-slate-900">
+            وبسایت، فروشگاه اینترنتی و پورتال مشتریان
           </h2>
-          <p className="text-sm text-slate-600 mt-1">
-            فروشگاه آنلاین متصل به موجودی زنده انبار، استعلام سریال گارانتی و تعمیرات، پورتال مشتریان و صفحه‌ساز بدون کدنویسی
+          <p className="text-sm text-slate-500">
+            فروش آنلاین متصل به انبار، پورتال اختصاصی مشتریان و مدیریت محتوای سایت
           </p>
         </div>
       </div>
 
       {/* Sub-tabs */}
-      <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-200/70 rounded-xl">
+      <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-200/70 rounded-xl w-fit">
         {[
-          { id: 'webshop', label: 'فروشگاه آنلاین یکپارچه', icon: Globe },
-          { id: 'warranty', label: 'پشتیبانی، استعلام سریال گارانتی و تعمیرات', icon: Wrench },
-          { id: 'portal', label: 'پورتال اختصاصی مشتریان و تامین‌کنندگان', icon: UserCheck },
-          { id: 'builder', label: 'صفحه‌ساز، وبلاگ سئو و فرم‌های تحت وب', icon: FileEdit },
+          { id: 'webshop', label: 'فروشگاه اینترنتی', icon: Globe },
+          { id: 'portal', label: 'پورتال مشتریان', icon: UserCheck },
+          { id: 'builder', label: 'سایت‌ساز و فرم‌های تماس', icon: FileEdit },
         ].map((t) => {
           const Icon = t.icon;
           return (
@@ -100,7 +69,7 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-4 h-4 shrink-0" />
               <span>{t.label}</span>
             </button>
           );
@@ -109,14 +78,14 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
 
       {/* TAB 1: BUILT-IN WEBSHOP */}
       {activeTab === 'webshop' && (
-        <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-5">
+        <div className="bg-white p-6 rounded-xl border border-slate-200 space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
+            <div className="space-y-1">
               <h3 className="text-base font-bold text-slate-900">
-                ویترین فروشگاه اینترنتی متصل به موجودی لحظه‌ای انبار
+                فروشگاه آنلاین یکپارچه با موجودی انبار
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                هر خرید در سایت فروشگاهی مستقیماً فاکتور فروش صادر کرده و از موجودی انبار کسر می‌کند.
+              <p className="text-xs text-slate-500">
+                ثبت سفارش آنلاین به‌صورت خودکار فاکتور فروش صادر کرده و از انبار کسر می‌کند
               </p>
             </div>
             <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
@@ -173,120 +142,15 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
         </div>
       )}
 
-      {/* TAB 2: SUPPORT, SERIAL WARRANTY LOOKUP & REPAIRS */}
-      {activeTab === 'warranty' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
-            <div>
-              <h3 className="text-base font-bold text-slate-900">
-                استعلام اصالت و گارانتی بر اساس شماره سریال یکتا
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                بررسی تاریخ انقضای گارانتی هر سریال و ثبت پذیرش تعمیرگاه یا تعویض دستگاه
-              </p>
-            </div>
-
-            <div className="flex gap-2 text-xs">
-              <input
-                type="text"
-                aria-label="شماره سریال دستگاه جهت استعلام گارانتی"
-                value={serialQuery}
-                onChange={(e) => setSerialQuery(e.target.value)}
-                placeholder="مثلاً SN-PK60-99101"
-                className="flex-1 px-3 py-2 font-mono border border-slate-300 rounded-lg"
-              />
-            </div>
-
-            <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 text-xs space-y-1">
-              {matchedSerialItem ? (
-                <>
-                  <div className="font-bold text-emerald-800">
-                    ✓ سریال معتبر در پایگاه داده انبار یافت شد: {matchedSerialItem.name}
-                  </div>
-                  <div className="text-slate-600">
-                    سری ساخت: {matchedSerialItem.batchNo} · وضعیت گارانتی شرکتی: فعال تا ۱۴۰۵/۰۶/۳۰
-                  </div>
-                </>
-              ) : (
-                <div className="text-slate-600">
-                  سریال نمونه جهت تست: <code className="font-mono">SN-PK60-99101</code> یا{' '}
-                  <code className="font-mono">SN-VP-7001</code>
-                </div>
-              )}
-            </div>
-
-            <form onSubmit={handleWarrantySubmit} className="space-y-3 pt-2 border-t border-slate-200 text-xs">
-              <div className="font-bold text-slate-900">فرم پذیرش دستگاه در واحد گارانتی و تعمیرات:</div>
-              <div>
-                <label className="block text-slate-600 mb-1">نام مشتری مراجعه‌کننده</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="مثلاً بهروز کریمی"
-                  value={newClaimCustomer}
-                  onChange={(e) => setNewClaimCustomer(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-slate-600 mb-1">شرح ایراد فنی دستگاه</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="مثلاً خطای سنسور کام‌دهی اتوماتیک یا نشتی کارتریج"
-                  value={newClaimIssue}
-                  onChange={(e) => setNewClaimIssue(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                />
-              </div>
-              <button
-                type="submit"
-                className="px-4 py-2 font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800"
-              >
-                ثبت قبض پذیرش تعمیرات / گارانتی
-              </button>
-            </form>
-          </div>
-
-          <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
-            <h3 className="text-base font-bold text-slate-900">
-              پرونده‌های فعال گارانتی و تعمیرات
-            </h3>
-            <div className="space-y-3 text-xs">
-              {warrantyTickets.map((t) => (
-                <div key={t.id} className="p-3.5 rounded-lg border border-slate-200 space-y-1.5">
-                  <div className="flex justify-between font-bold text-slate-900">
-                    <span className="font-mono text-indigo-700">
-                      {t.ticketNo} · سریال: {t.serialNo}
-                    </span>
-                    <span className="text-emerald-700">{t.status}</span>
-                  </div>
-                  <div className="font-semibold text-slate-800">
-                    {t.customerName} — {t.itemName}
-                  </div>
-                  <div className="text-slate-600">{t.issueDescription}</div>
-                  <div className="flex justify-between text-slate-500 pt-1">
-                    <span>انقضای گارانتی: {t.warrantyExpiry}</span>
-                    <span className="font-mono">
-                      هزینه تعمیر: {t.repairCost === 0 ? 'رایگان (تحت پوشش گارانتی)' : `${formatCurrency(t.repairCost)} ت`}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 3: CUSTOMER & SUPPLIER PORTAL */}
+      {/* TAB 2: CUSTOMER & SUPPLIER PORTAL */}
       {activeTab === 'portal' && (
-        <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
+        <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-5">
           <div>
             <h3 className="text-base font-bold text-slate-900">
               پورتال اختصاصی مشتریان و تامین‌کنندگان
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              نمای پنل مشتری پس از ورود: مشاهده سوابق فاکتورها، اقساط باقی‌مانده و کد رهگیری مرسوله پستی و تیپاکس
+              پنل اختصاصی هر مشتری برای مشاهده سوابق فاکتورها، وضعیت سفارش‌ها، دانلود صورت‌حساب و تسویه آنلاین بدهی
             </p>
           </div>
 
@@ -306,29 +170,96 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
               <div className="text-slate-500 mt-1">سررسید قسط بعدی: ۱۴۰۴/۰۹/۰۱</div>
             </div>
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-              <div className="text-slate-500">وضعیت آخرین مرسوله ارسالی</div>
+              <div className="text-slate-500">وضعیت آخرین سفارش ارسالی</div>
               <div className="font-bold text-emerald-700 text-sm mt-1">
                 تحویل به تیپاکس (کد رهگیری: ۸۸۴۹۲۰۱)
               </div>
-              <div className="text-slate-500 mt-1">بسته‌بندی تاییدشده توسط انبار کهریزک</div>
+              <div className="text-slate-500 mt-1">ارسال‌شده از انبار مرکزی کهریزک</div>
+            </div>
+          </div>
+
+          {/* Customer Invoice History inside Portal */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-bold text-slate-900">
+              سوابق فاکتورها و لینک تسویه آنلاین در پورتال مشتری
+            </h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-right text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
+                    <th className="py-2.5 px-3">شماره فاکتور</th>
+                    <th className="py-2.5 px-3">تاریخ صدور</th>
+                    <th className="py-2.5 px-3">شرح اقلام</th>
+                    <th className="py-2.5 px-3 text-left">مبلغ کل</th>
+                    <th className="py-2.5 px-3 text-left">مانده قابل پرداخت</th>
+                    <th className="py-2.5 px-3 text-left">عملیات پورتال</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {salesInvoices.map((inv) => {
+                    const rem = Math.max(0, inv.totalAmount - inv.paidAmount);
+                    return (
+                      <tr key={inv.id} className="hover:bg-slate-50">
+                        <td className="py-2.5 px-3 font-mono font-semibold text-slate-900">
+                          {inv.invoiceNo}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-slate-500">{inv.date}</td>
+                        <td className="py-2.5 px-3 text-slate-700">{inv.itemsSummary}</td>
+                        <td className="py-2.5 px-3 font-mono text-left">
+                          {formatCurrency(inv.totalAmount)} ت
+                        </td>
+                        <td className="py-2.5 px-3 font-mono font-semibold text-left text-rose-700">
+                          {formatCurrency(rem)} ت
+                        </td>
+                        <td className="py-2.5 px-3 text-left">
+                          <div className="inline-flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => window.print()}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-slate-700 bg-slate-100 rounded hover:bg-slate-200"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              <span>دانلود صورت‌حساب</span>
+                            </button>
+                            {rem > 0 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onShowToast(
+                                    `لینک درگاه پرداخت آنلاین برای فاکتور ${inv.invoiceNo} به مبلغ ${formatCurrency(rem)} تومان باز شد.`
+                                  )
+                                }
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-white bg-indigo-600 rounded hover:bg-indigo-700"
+                              >
+                                <CreditCard className="w-3.5 h-3.5" />
+                                <span>تسویه آنلاین</span>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
       )}
 
-      {/* TAB 4: WEB PAGE BUILDER, SEO BLOG & WEB FORMS */}
+      {/* TAB 3: WEB PAGE BUILDER, SEO BLOG & WEB FORMS */}
       {activeTab === 'builder' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
             <h3 className="text-base font-bold text-slate-900">
-              صفحه‌ساز بدون کدنویسی و مقالات سئو
+              سایت‌ساز، صفحات فرود و مقالات وبلاگ
             </h3>
             <div className="space-y-2.5 text-xs">
               {[
                 {
                   page: 'صفحه فرود جشنواره پاییزه پاد پیک‌بار ۶۰۰۰۰',
                   slug: 'مسیر صفحه: جشنواره پاییزه پیک‌بار',
-                  seoScore: 'سئو کامل (داده‌های ساختاریافته محصول فعال)',
+                  seoScore: 'سئو کامل (متصل به کاتالوگ محصولات انبار)',
                 },
                 {
                   page: 'مقاله وبلاگ: تفاوت تخصصی جویس و سالت نیکوتین',
@@ -336,9 +267,9 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
                   seoScore: 'رتبه ۱ موتورهای جستجو · ۴,۲۰۰ بازدید ماهانه',
                 },
                 {
-                  page: 'صفحه استعلام آنلاین اصالت کالا و سریال گارانتی',
-                  slug: 'مسیر صفحه: استعلام آنلاین اصالت و گارانتی',
-                  seoScore: 'متصل به جدول سریال‌های انبار مرکزی',
+                  page: 'صفحه کاتالوگ همکاری و شرایط اخذ نمایندگی فروش',
+                  slug: 'مسیر صفحه: همکاری و فروش عمده',
+                  seoScore: 'متصل به فرم ثبت سرنخ فروش در واحد ارتباط با مشتری',
                 },
               ].map((pg) => (
                 <div key={pg.page} className="p-3.5 rounded-lg border border-slate-200 space-y-1">
@@ -353,7 +284,7 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
           <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                فرم‌های تحت وب متصل به پایگاه داده سامانه
+                فرم‌های تماس و درخواست نمایندگی متصل به سرنخ‌های فروش
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 فرم آنلاین «درخواست اخذ نمایندگی فروش و همکاری عمده» (تعداد فرم‌های دریافتی: {submittedWebFormsCount})
@@ -396,7 +327,7 @@ export const SupportWebshopModule: React.FC<SupportWebshopModuleProps> = ({
                 type="submit"
                 className="px-4 py-2 font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
               >
-                ارسال فرم آنلاین به هسته سامانه
+                ارسال فرم آنلاین به واحد فروش
               </button>
             </form>
           </div>

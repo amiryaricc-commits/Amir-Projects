@@ -1,10 +1,8 @@
-export const DEFAULT_VAT_PERCENT = 10;
-
 export interface JournalLine {
   id: string;
   accountCode: string;
   accountName: string;
-  partyType?: 'مشتری' | 'تامین‌کننده' | 'پرسنل' | 'سهامدار' | '—';
+  partyType?: 'مشتری' | 'تامین‌کننده' | 'سهامدار' | '—';
   partyName?: string;
   costCenter?: string;
   dimensionBranch?: string;
@@ -178,55 +176,6 @@ export function allocateLandedCost(
   });
 }
 
-export function calculateAssetDepreciation(
-  purchaseValue: number,
-  salvageValue: number,
-  usefulLifeMonths: number,
-  elapsedMonths: number,
-  method: 'straight-line' | 'declining'
-): {
-  monthlyDepreciation: number;
-  accumulatedDepreciation: number;
-  currentBookValue: number;
-} {
-  const depreciableBase = Math.max(0, purchaseValue - salvageValue);
-  const safeLife = Math.max(1, usefulLifeMonths);
-  const clampedElapsed = Math.min(Math.max(0, elapsedMonths), safeLife);
-
-  if (method === 'straight-line') {
-    const monthlyDepreciation = Math.round(depreciableBase / safeLife);
-    const accumulatedDepreciation = Math.min(
-      depreciableBase,
-      monthlyDepreciation * clampedElapsed
-    );
-    const currentBookValue = Math.max(salvageValue, purchaseValue - accumulatedDepreciation);
-    return {
-      monthlyDepreciation,
-      accumulatedDepreciation,
-      currentBookValue,
-    };
-  }
-
-  const monthlyRate = Math.min(0.15, 2 / safeLife);
-  let book = purchaseValue;
-  let lastMonthDep = 0;
-  for (let m = 0; m < clampedElapsed; m++) {
-    const dep = Math.min(Math.max(0, book - salvageValue), Math.round(book * monthlyRate));
-    lastMonthDep = dep;
-    book -= dep;
-  }
-  const monthlyDepreciation =
-    clampedElapsed === 0
-      ? Math.round(purchaseValue * monthlyRate)
-      : lastMonthDep;
-  const accumulatedDepreciation = purchaseValue - book;
-  return {
-    monthlyDepreciation,
-    accumulatedDepreciation,
-    currentBookValue: book,
-  };
-}
-
 export function evaluateBudgetControl(
   allocatedBudget: number,
   spentSoFar: number,
@@ -285,20 +234,17 @@ export function calculatePosCartTotals(params: {
   priceListMultiplier: number;
   couponPercent: number;
   redeemLoyaltyPoints: number;
-  taxPercent?: number;
   partnerCommissionPercent: number;
 }): {
   grossTotal: number;
   pricingRuleDiscount: number;
   couponDiscount: number;
   loyaltyDiscount: number;
-  taxAmount: number;
   netPayable: number;
   earnedLoyaltyPoints: number;
   partnerCommissionAmount: number;
   freeGiftTriggered: boolean;
 } {
-  const effectiveTaxPct = params.taxPercent ?? DEFAULT_VAT_PERCENT;
   const grossTotal = params.items.reduce(
     (sum, item) => sum + Math.round(item.price * params.priceListMultiplier) * item.qty,
     0
@@ -317,12 +263,10 @@ export function calculatePosCartTotals(params: {
     Math.max(0, afterPricingRule - couponDiscount),
     params.redeemLoyaltyPoints * 1000
   );
-  const taxableBase = Math.max(0, afterPricingRule - couponDiscount - loyaltyDiscount);
-  const taxAmount = Math.round((taxableBase * effectiveTaxPct) / 100);
-  const netPayable = taxableBase + taxAmount;
+  const netPayable = Math.max(0, afterPricingRule - couponDiscount - loyaltyDiscount);
   const earnedLoyaltyPoints = Math.floor(netPayable / 50000);
   const partnerCommissionAmount = Math.round(
-    (taxableBase * params.partnerCommissionPercent) / 100
+    (netPayable * params.partnerCommissionPercent) / 100
   );
 
   return {
@@ -330,7 +274,6 @@ export function calculatePosCartTotals(params: {
     pricingRuleDiscount,
     couponDiscount,
     loyaltyDiscount,
-    taxAmount,
     netPayable,
     earnedLoyaltyPoints,
     partnerCommissionAmount,
@@ -392,7 +335,6 @@ export function checkRolePermission(
   role: SystemRole,
   permission:
     | 'view_buying_cost'
-    | 'unlock_fiscal_year'
     | 'manage_users_roles'
     | 'post_journal'
     | 'adjust_stock'
@@ -402,7 +344,6 @@ export function checkRolePermission(
   switch (permission) {
     case 'view_buying_cost':
       return role === 'مدیر مالی (Accounts Manager)' || role === 'سرپرست انبار (Stock Manager)';
-    case 'unlock_fiscal_year':
     case 'manage_users_roles':
     case 'export_database':
       return false;
@@ -422,7 +363,7 @@ export function formatRoleName(role: string): string {
     case 'مدیر مالی (Accounts Manager)':
       return 'مدیر مالی و حسابداری';
     case 'سرپرست انبار (Stock Manager)':
-      return 'سرپرست انبار و تدارکات';
+      return 'سرپرست انبار و کالا';
     case 'صندوقدار POS':
       return 'صندوقدار فروشگاه';
     default:
@@ -455,13 +396,11 @@ export function stripEnglishTerms(text: string): string {
     .replace(/\bMTL\b/g, 'معمولی')
     .replace(/\bDTL\b/g, 'حرفه‌ای')
     .replace(/\bB2B\b/g, 'عمده')
-    .replace(/\bBOM\b/g, 'فرمول تولید')
     .replace(/\bCRM\b/g, 'مشتریان')
     .replace(/\bCOGS\b/g, 'بهای تمام‌شده')
     .replace(/\bGL\b/g, 'دفتر کل')
     .trim();
 }
-
 
 export function calculateFinancialStatements(
   accounts: { category: 'دارایی' | 'بدهی' | 'سرمایه' | 'درآمد' | 'هزینه'; level: string; balance: number }[]
@@ -536,13 +475,11 @@ export function postDoubleEntryToAccounts<
 }
 
 export function computeMultiLineInvoiceTotals(
-  lines: { qty: number; unitPrice: number; discountPercent: number; valuationRate: number }[],
-  vatPercent = DEFAULT_VAT_PERCENT
+  lines: { qty: number; unitPrice: number; discountPercent: number; valuationRate: number }[]
 ): {
   grossAmount: number;
   totalDiscount: number;
-  netBeforeTax: number;
-  taxAmount: number;
+  netTotal: number;
   grandTotal: number;
   totalCogs: number;
 } {
@@ -561,17 +498,13 @@ export function computeMultiLineInvoiceTotals(
     totalCogs += qty * (Number(line.valuationRate) || 0);
   }
 
-  const netBeforeTax = Math.max(0, grossAmount - totalDiscount);
-  const taxAmount = Math.round((netBeforeTax * vatPercent) / 100);
-  const grandTotal = netBeforeTax + taxAmount;
+  const netTotal = Math.max(0, grossAmount - totalDiscount);
 
   return {
     grossAmount,
     totalDiscount,
-    netBeforeTax,
-    netTotal: netBeforeTax,
-    taxAmount,
-    grandTotal,
+    netTotal,
+    grandTotal: netTotal,
     totalCogs,
   };
 }
@@ -630,7 +563,6 @@ export function computeTrialBalance6Col(
     const isDebitNature = acc.category === 'دارایی' || acc.category === 'هزینه';
 
     if (isFilteredByBranch && glEntries) {
-      // Sum actual GL entries matching this account (or child accounts starting with acc.codePrefix) and branch
       const prefix = acc.level === 'گروه' ? acc.code.slice(0, 1) : acc.level === 'کل' ? acc.code.slice(0, 2) : acc.code;
       const matchingGL = glEntries.filter(
         (g) =>

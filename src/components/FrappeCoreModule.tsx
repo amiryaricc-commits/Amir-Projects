@@ -1,91 +1,78 @@
 import React, { useState } from 'react';
 import {
-  Sliders,
-  GitBranch,
   Printer,
+  BarChart3,
+  FileSpreadsheet,
   Shield,
   Code2,
   Download,
+  Upload,
 } from 'lucide-react';
-import { CustomFieldDefinition, AuditLogRecord } from '../data/erpSeedData';
-import { stripEnglishTerms } from '../utils/erpEngine';
+import { AuditLogRecord } from '../data/erpSeedData';
+import { formatCurrency, stripEnglishTerms } from '../utils/erpEngine';
 
 interface FrappeCoreModuleProps {
-  customFields: CustomFieldDefinition[];
-  onAddCustomField: (field: CustomFieldDefinition) => void;
   auditLogs: AuditLogRecord[];
   onExportFullData: () => void;
   onShowToast: (msg: string) => void;
 }
 
 export const FrappeCoreModule: React.FC<FrappeCoreModuleProps> = ({
-  customFields,
-  onAddCustomField,
   auditLogs,
   onExportFullData,
   onShowToast,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'doctype' | 'workflow' | 'print_notify' | 'permissions_audit' | 'scripts_api'
-  >('doctype');
-
-  // Custom Field Builder State
-  const [targetDoc, setTargetDoc] = useState<CustomFieldDefinition['targetDocType']>(
-    'فاکتور فروش (Sales Invoice)'
-  );
-  const [fieldLabel, setFieldLabel] = useState('');
-  const [fieldName, setFieldName] = useState('');
-  const [fieldType, setFieldType] = useState<CustomFieldDefinition['fieldType']>('متن (Data)');
-  const [hideFromCashier, setHideFromCashier] = useState(true);
-
-  // Workflow Simulator State
-  const [workflowStep, setWorkflowStep] = useState<
-    'ثبت توسط فروشنده' | 'تایید انباردار' | 'تایید نهایی مدیر'
-  >('ثبت توسط فروشنده');
+    'print_notify' | 'report_dashboard' | 'import_export' | 'permissions_audit' | 'scripts_api'
+  >('print_notify');
 
   // Role Permission Preview State
-  const [previewRole, setPreviewRole] = useState<'مدیر ارشد سامانه' | 'صندوقدار فروشگاه'>(
-    'مدیر ارشد سامانه'
+  const [previewRole, setPreviewRole] = useState<'مدیر کل سامانه' | 'صندوقدار فروشگاه'>(
+    'مدیر کل سامانه'
   );
+  const [branchRestriction, setBranchRestriction] = useState<'همه شعب' | 'فقط شعبه الهیه'>(
+    'همه شعب'
+  );
+
+  // Dynamic Report Builder State
+  const [reportTarget, setReportTarget] = useState<'فاکتورهای فروش' | 'موجودی کالا و انبار' | 'گردش مراکز هزینه'>(
+    'فاکتورهای فروش'
+  );
+  const [selectedColumns, setSelectedColumns] = useState<string[]>([
+    'شماره سند',
+    'نام طرف حساب',
+    'شعبه',
+    'مبلغ کل',
+    'مانده تسویه‌نشده',
+  ]);
 
   // Server Script State
   const [serverScriptCode, setServerScriptCode] = useState(
-    `// قانون خودکار سرور (پیش از ذخیره فاکتور فروش):
-اگر (مبلغ_کل_فاکتور > ۵,۰۰۰,۰۰۰ تومان) آنگاه:
+    `// قانون خودکار سمت سرور (پیش از ثبت نهایی فاکتور فروش):
+اگر (مبلغ_کل_فاکتور > ۵۰,۰۰۰,۰۰۰ تومان) آنگاه:
     ارسال_اعلان_فوری(
-        گیرنده = "ربات_تلگرام_مدیرعامل"،
-        پیام = "هشدار فاکتور کلان امکان به مبلغ " + مبلغ_کل_فاکتور + " تومان ثبت شد."
+        گیرنده = "پیام_رسان_مدیرعامل"،
+        پیام = "فاکتور فروش کلان به مبلغ " + مبلغ_کل_فاکتور + " تومان ثبت شد."
     )
-    اولویت_پردازش_انبار = "فوری_ویژه"`
+    اولویت_ارسال_انبار = "فوری_ویژه"`
   );
 
-  const handleAddField = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!fieldLabel.trim()) return;
-    onAddCustomField({
-      id: `cf-${Date.now()}`,
-      targetDocType: targetDoc,
-      fieldLabel: fieldLabel.trim(),
-      fieldName: fieldName.trim() || `فیلد_سفارشی_${customFields.length + 1}`,
-      fieldType,
-      isRequired: false,
-      hiddenForRoles: hideFromCashier ? ['صندوقدار فروشگاه'] : [],
-    });
-    setFieldLabel('');
-    setFieldName('');
-    onShowToast(`فیلد سفارشی «${fieldLabel}» بدون کدنویسی به فرم اضافه شد.`);
+  const toggleReportColumn = (col: string) => {
+    setSelectedColumns((prev) =>
+      prev.includes(col) ? prev.filter((c) => c !== col) : [...prev, col]
+    );
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">
-            تنظیمات هسته، اتوماسیون و سفارشی‌سازی فرم‌ها
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200">
+        <div className="space-y-1">
+          <h2 className="text-lg font-bold text-slate-900">
+            تنظیمات و امکانات هسته سیستم
           </h2>
-          <p className="text-sm text-slate-600 mt-1">
-            ساخت فیلد و فرم بدون کدنویسی، گردش کار تاییدات، اعلان تلگرام، طراح چاپ، دسترسی سطح فیلد، گزارش تغییرات امنیتی و وب‌هوک
+          <p className="text-sm text-slate-500">
+            اعلان‌های خودکار، قالب چاپ، گزارش‌ساز پویا، ورود و خروج اکسل، دسترسی‌ها و وب‌هوک
           </p>
         </div>
         <button
@@ -93,19 +80,19 @@ export const FrappeCoreModule: React.FC<FrappeCoreModuleProps> = ({
           onClick={onExportFullData}
           className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 whitespace-nowrap shrink-0"
         >
-          <Download className="w-4 h-4" />
-          <span>دریافت خروجی یک‌کلیکه کل پایگاه داده</span>
+          <Download className="w-4 h-4 shrink-0" />
+          <span>خروجی کامل پایگاه داده</span>
         </button>
       </div>
 
       {/* Sub-tabs */}
-      <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-200/70 rounded-xl">
+      <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-200/70 rounded-xl w-fit">
         {[
-          { id: 'doctype', label: 'فرم‌ساز و فیلدهای سفارشی', icon: Sliders },
-          { id: 'workflow', label: 'طراح گردش کار و زنجیره تاییدات', icon: GitBranch },
-          { id: 'print_notify', label: 'موتور اعلان خودکار و طراح چاپ', icon: Printer },
-          { id: 'permissions_audit', label: 'دسترسی سطح فیلد و تاریخچه امنیتی', icon: Shield },
-          { id: 'scripts_api', label: 'وب‌هوک‌ها، یکپارچه‌سازی و قوانین سرور', icon: Code2 },
+          { id: 'print_notify', label: 'اعلان‌ها و قالب چاپ', icon: Printer },
+          { id: 'report_dashboard', label: 'گزارش‌ساز و داشبورد', icon: BarChart3 },
+          { id: 'import_export', label: 'ورود و خروج اکسل', icon: FileSpreadsheet },
+          { id: 'permissions_audit', label: 'دسترسی‌ها و لاگ امنیتی', icon: Shield },
+          { id: 'scripts_api', label: 'وب‌هوک و اسکریپت‌ها', icon: Code2 },
         ].map((t) => {
           const Icon = t.icon;
           return (
@@ -119,200 +106,50 @@ export const FrappeCoreModule: React.FC<FrappeCoreModuleProps> = ({
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-4 h-4 shrink-0" />
               <span>{t.label}</span>
             </button>
           );
         })}
       </div>
 
-      {/* TAB 1: CUSTOMIZE FORM & DOCTYPE */}
-      {activeTab === 'doctype' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200 space-y-4">
-            <h3 className="text-base font-bold text-slate-900">
-              افزودن فیلد جدید بدون کدنویسی
-            </h3>
-            <form onSubmit={handleAddField} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-medium text-slate-700 mb-1">انتخاب فرم یا سند هدف</label>
-                <select
-                  aria-label="انتخاب فرم هدف برای افزودن فیلد"
-                  value={targetDoc}
-                  onChange={(e) => setTargetDoc(e.target.value as CustomFieldDefinition['targetDocType'])}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                >
-                  <option value="فاکتور فروش (Sales Invoice)">فاکتور فروش</option>
-                  <option value="کالا و خدمات (Item)">کالا و خدمات</option>
-                  <option value="مشتری (Customer)">پرونده مشتری</option>
-                  <option value="سند روزنامه (Journal Entry)">سند حسابداری روزنامه</option>
-                </select>
-              </div>
-              <div>
-                <label className="block font-medium text-slate-700 mb-1">عنوان فارسی فیلد جدید</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="مثلاً شماره پلمپ امنیتی کارتن"
-                  value={fieldLabel}
-                  onChange={(e) => setFieldLabel(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block font-medium text-slate-700 mb-1">نوع داده فیلد</label>
-                <select
-                  aria-label="نوع داده فیلد سفارشی"
-                  value={fieldType}
-                  onChange={(e) => setFieldType(e.target.value as CustomFieldDefinition['fieldType'])}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                >
-                  <option value="متن (Data)">متن آزاد</option>
-                  <option value="عدد (Int/Currency)">عدد / مبلغ ریالی</option>
-                  <option value="لیست کشویی (Select)">لیست انتخابی کشویی</option>
-                  <option value="تاریخ (Date)">تاریخ شمسی</option>
-                  <option value="بارکد (Barcode)">اسکنر بارکد</option>
-                  <option value="امضای دیجیتال (Signature)">امضای دیجیتال</option>
-                </select>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer pt-1">
-                <input
-                  type="checkbox"
-                  checked={hideFromCashier}
-                  onChange={(e) => setHideFromCashier(e.target.checked)}
-                  className="rounded border-slate-300 text-indigo-600"
-                />
-                <span className="text-slate-700">
-                  مخفی‌سازی این فیلد برای نقش «صندوقدار فروشگاه» (دسترسی سطح فیلد)
-                </span>
-              </label>
-              <button
-                type="submit"
-                className="w-full py-2 px-4 font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
-              >
-                + ایجاد فیلد در ساختار پایگاه داده
-              </button>
-            </form>
-          </div>
-
-          <div className="lg:col-span-7 bg-white p-5 rounded-xl border border-slate-200 space-y-4">
-            <h3 className="text-base font-bold text-slate-900">
-              فیلدهای سفارشی تعریف‌شده در هسته سامانه
-            </h3>
-            <div className="space-y-3 text-xs">
-              {customFields.map((cf) => (
-                <div
-                  key={cf.id}
-                  className="p-3.5 rounded-lg border border-slate-200 flex items-center justify-between"
-                >
-                  <div className="space-y-1">
-                    <div className="font-bold text-slate-900">{cf.fieldLabel}</div>
-                    <div className="text-slate-500">
-                      <span>سند هدف: {stripEnglishTerms(cf.targetDocType)}</span>
-                    </div>
-                  </div>
-                  <div className="text-left">
-                    <div className="font-semibold text-indigo-700">{stripEnglishTerms(cf.fieldType)}</div>
-                    {cf.hiddenForRoles.length > 0 && (
-                      <div className="text-amber-700">
-                        مخفی برای: {cf.hiddenForRoles.map((r) => r.replace('POS', 'فروشگاه')).join('، ')}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 2: WORKFLOW BUILDER */}
-      {activeTab === 'workflow' && (
-        <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-5">
-          <div>
-            <h3 className="text-base font-bold text-slate-900">
-              طراح گردش کار و زنجیره تایید اسناد
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              شبیه‌سازی زنده چرخه تایید سند: ثبت توسط فروشنده ⬅ تایید انباردار ⬅ تایید نهایی مدیر مالی
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            {[
-              {
-                step: 'ثبت توسط فروشنده',
-                role: 'کارشناس فروش',
-                desc: 'ثبت پیش‌نویس فاکتور و بررسی اعتبار اولیه مشتری',
-              },
-              {
-                step: 'تایید انباردار',
-                role: 'سرپرست انبار و لجستیک',
-                desc: 'کنترل موجودی قفسه، سریال‌ها و تایید حواله خروج بار',
-              },
-              {
-                step: 'تایید نهایی مدیر',
-                role: 'مدیر مالی / مدیرعامل',
-                desc: 'ثبت قطعی سند حسابداری دوبل و قفل کردن ویرایش فاکتور',
-              },
-            ].map((st) => {
-              const isCurrent = workflowStep === st.step;
-              return (
-                <div
-                  key={st.step}
-                  className={`p-4 rounded-xl border transition-colors ${
-                    isCurrent
-                      ? 'bg-indigo-50/80 border-indigo-400 text-indigo-950'
-                      : 'bg-slate-50 border-slate-200 text-slate-600'
-                  }`}
-                >
-                  <div className="font-bold text-sm">{st.step}</div>
-                  <div className="text-indigo-700 font-medium mt-1">نقش مجاز: {st.role}</div>
-                  <p className="mt-2">{st.desc}</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setWorkflowStep(st.step as typeof workflowStep);
-                      onShowToast(`وضعیت گردش کار سند به «${st.step}» تغییر یافت.`);
-                    }}
-                    className="mt-3 px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-semibold text-slate-900 hover:bg-slate-100"
-                  >
-                    {isCurrent ? 'مرحله فعال فعلی ✓' : 'انتقال سند به این مرحله'}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 3: NOTIFICATIONS ENGINE & PRINT FORMAT BUILDER */}
+      {/* TAB 1: NOTIFICATIONS ENGINE & PRINT FORMAT BUILDER */}
       {activeTab === 'print_notify' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
-            <h3 className="text-base font-bold text-slate-900">
-              سیستم اعلان‌های خودکار تلگرام و پیامک
-            </h3>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                سیستم اعلان‌های خودکار (پیامک، ایمیل و اعلان داخلی)
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                ارسال خودکار هشدار بر اساس رویدادها (رسیدن چک به سررسید، کمبود موجودی انبار یا ثبت فاکتور جدید)
+              </p>
+            </div>
             <div className="space-y-3 text-xs">
               {[
                 {
-                  rule: 'وقتی فاکتور فروش بالای ۵,۰۰۰,۰۰۰ تومان ثبت شد',
-                  channel: 'ارسال آنی به ربات تلگرام مدیرعامل',
+                  rule: 'وقتی فاکتور فروش جدید بالای ۵۰,۰۰۰,۰۰۰ تومان ثبت شد',
+                  channel: 'ارسال پیامک و اعلان آنی به مدیرعامل و مدیر مالی',
                   status: 'فعال',
                 },
                 {
-                  rule: 'وقتی ۳ روز از سررسید قسط یا بدهی مشتری گذشت',
-                  channel: 'ارسال پیامک یادآوری خودکار + هشدار به واحد وصول مطالبات',
+                  rule: 'وقتی ۴۸ ساعت تا سررسید چک صیادی یا قسط مشتری باقی مانده باشد',
+                  channel: 'ارسال پیامک یادآوری خودکار به مشتری + اعلان داخلی به خزانه‌دار',
                   status: 'فعال',
                 },
                 {
-                  rule: 'وقتی تاریخ انقضای سری ساخت جویس کمتر از ۳۰ روز شد',
-                  channel: 'اعلان داخل سامانه به سرپرست انبار و واحد فروش جهت جشنواره فروش',
+                  rule: 'وقتی موجودی کالا در انبار به نقطه سفارش رسید',
+                  channel: 'ارسال اعلان داخلی به سرپرست انبار جهت ثبت درخواست شارژ کالا',
                   status: 'فعال',
                 },
               ].map((n) => (
                 <div key={n.rule} className="p-3.5 rounded-lg border border-slate-200 space-y-1">
-                  <div className="font-bold text-slate-900">شرط رویداد: {n.rule}</div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900">رویداد: {n.rule}</span>
+                    <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold">
+                      {n.status}
+                    </span>
+                  </div>
                   <div className="text-slate-600">{n.channel}</div>
                 </div>
               ))}
@@ -320,41 +157,216 @@ export const FrappeCoreModule: React.FC<FrappeCoreModuleProps> = ({
           </div>
 
           <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
-            <h3 className="text-base font-bold text-slate-900">
-              طراح فرمت چاپ اسناد و برچسب‌ها
-            </h3>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                طراح فرمت چاپ اسناد و فاکتورها
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                شخصی‌سازی ظاهر فاکتورها، رسیدها و اسناد چاپی با چیدمان دلخواه، لوگو و مهر شرکت
+              </p>
+            </div>
             <div className="space-y-3 text-xs">
               {[
                 {
-                  name: 'قالب فاکتور رسمی مالیاتی طلایی (افقی با مهر و امضای دیجیتال)',
-                  target: 'فاکتور فروش رسمی',
+                  name: 'قالب فاکتور فروش رسمی شرکتی (افقی همراه با لوگو و مهر دیجیتال)',
+                  target: 'فاکتور فروش',
                 },
                 {
                   name: 'فیش حرارتی ۸ سانتی‌متری صندوق فروشگاهی (همراه با بارکد و امتیاز باشگاه)',
                   target: 'فیش صندوق فروشگاهی',
                 },
                 {
-                  name: 'برچسب بارکد و سریال حرارتی ۵×۳ سانتی‌متری ویژه قفسه‌بندی انبار',
+                  name: 'برچسب بارکد و سریال حرارتی ۵×۳ سانتی‌متری ویژه قفسه‌های انبار',
                   target: 'کالا و شماره سریال',
                 },
               ].map((pf) => (
                 <div
                   key={pf.name}
-                  className="p-3.5 rounded-lg border border-slate-200 flex items-center justify-between"
+                  className="p-3.5 rounded-lg border border-slate-200 flex items-center justify-between gap-3"
                 >
                   <div>
                     <div className="font-bold text-slate-900">{pf.name}</div>
-                    <div className="text-slate-500">سند متصل: {pf.target}</div>
+                    <div className="text-slate-500 mt-0.5">سند متصل: {pf.target}</div>
                   </div>
                   <button
                     type="button"
                     onClick={() => window.print()}
-                    className="px-3 py-1.5 bg-slate-900 text-white rounded-lg font-semibold whitespace-nowrap"
+                    className="px-3 py-1.5 bg-slate-900 text-white rounded-lg font-semibold whitespace-nowrap shrink-0"
                   >
                     پیش‌نمایش چاپ
                   </button>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: DYNAMIC REPORT BUILDER & DASHBOARD CHART */}
+      {activeTab === 'report_dashboard' && (
+        <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-5">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                گزارش‌ساز و داشبوردساز پویا (بدون کدنویسی)
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                انتخاب ستون‌های دلخواه، فیلترهای تحلیلی و ساخت کارت‌های آماری و نمودارهای مدیریتی
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-slate-500">منبع داده گزارش:</span>
+              {(['فاکتورهای فروش', 'موجودی کالا و انبار', 'گردش مراکز هزینه'] as const).map((src) => (
+                <button
+                  key={src}
+                  type="button"
+                  onClick={() => setReportTarget(src)}
+                  className={`px-3 py-1.5 rounded-lg font-semibold ${
+                    reportTarget === src
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  {src}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
+            <div className="font-bold text-slate-800">ستون‌های فعال در گزارش سفارشی ({reportTarget}):</div>
+            <div className="flex flex-wrap gap-2">
+              {[
+                'شماره سند',
+                'نام طرف حساب',
+                'شعبه',
+                'کانال فروش',
+                'مبلغ کل',
+                'مانده تسویه‌نشده',
+                'بهای تمام‌شده',
+                'سود خالص ردیف',
+              ].map((col) => {
+                const active = selectedColumns.includes(col);
+                return (
+                  <button
+                    key={col}
+                    type="button"
+                    onClick={() => toggleReportColumn(col)}
+                    className={`px-3 py-1.5 rounded-lg border font-medium transition-colors ${
+                      active
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                    }`}
+                  >
+                    {active ? `✓ ${col}` : `+ ${col}`}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            <div className="p-4 rounded-xl border border-slate-200 space-y-1">
+              <div className="text-slate-500">کارت آماری ۱: میانگین مبلغ هر فاکتور</div>
+              <div className="font-mono font-bold text-base text-slate-900">۴۶,۰۶۲,۵۰۰ تومان</div>
+              <div className="text-emerald-700">+۱۸٪ رشد نسبت به ماه قبل</div>
+            </div>
+            <div className="p-4 rounded-xl border border-slate-200 space-y-1">
+              <div className="text-slate-500">کارت آماری ۲: نرخ وصول مطالبات</div>
+              <div className="font-mono font-bold text-base text-indigo-700">۷۴.۸٪</div>
+              <div className="text-slate-500">بر اساس فاکتورهای ثبت قطعی‌شده</div>
+            </div>
+            <div className="p-4 rounded-xl border border-slate-200 space-y-1">
+              <div className="text-slate-500">کارت آماری ۳: حاشیه سود ناخالص میانگین</div>
+              <div className="font-mono font-bold text-base text-emerald-700">۳۱.۴٪</div>
+              <div className="text-slate-500">پس از کسر بهای تمام‌شده میانگین موزون</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: BULK DATA IMPORT / EXPORT TOOL */}
+      {activeTab === 'import_export' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
+            <div className="flex items-center gap-2">
+              <Upload className="w-5 h-5 text-indigo-600" />
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  ورود دسته‌جمعی اطلاعات از فایل اکسل (ایمپورت انبوه)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  بارگذاری یک‌باره هزاران ردیف کالا، لیست قیمت همکار، طرف‌حساب‌ها یا اسناد افتتاحیه
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2.5 text-xs">
+              {[
+                {
+                  title: 'قالب اکسل ورود و به‌روزرسانی دسته‌جمعی کالاها و لیست قیمت',
+                  records: 'پشتیبانی از کد کالا، نام، برند، طعم، قیمت تکی و قیمت عمده',
+                },
+                {
+                  title: 'قالب اکسل ورود اطلاعات مشتریان و مانده حساب اول دوره',
+                  records: 'پشتیبانی از نام مشتری، تلفن، سقف اعتبار و سطح باشگاه مشتریان',
+                },
+                {
+                  title: 'قالب اکسل ورود اسناد حسابداری روزنامه و درخت حساب‌ها',
+                  records: 'کنترل خودکار تراز بودن بدهکار و بستانکار پیش از ثبت نهایی',
+                },
+              ].map((tpl) => (
+                <div
+                  key={tpl.title}
+                  className="p-3.5 rounded-lg border border-slate-200 flex items-center justify-between gap-3"
+                >
+                  <div>
+                    <div className="font-bold text-slate-900">{tpl.title}</div>
+                    <div className="text-slate-500 mt-0.5">{tpl.records}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onShowToast(`فایل نمونه «${tpl.title}» آماده بارگذاری و بررسی ستون‌ها شد.`)
+                    }
+                    className="px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg font-semibold whitespace-nowrap shrink-0 hover:bg-indigo-100"
+                  >
+                    انتخاب فایل اکسل
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
+            <div className="flex items-center gap-2">
+              <Download className="w-5 h-5 text-emerald-600" />
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  خروجی دسته‌جمعی اطلاعات و پشتیبان‌گیری (اکسپورت)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  استخراج فوری جداول سامانه جهت تحلیل در اکسل یا انتقال به سایر سیستم‌ها
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="font-bold text-slate-900">
+                  استخراج یکپارچه کل اطلاعات سال مالی ۱۴۰۴
+                </div>
+                <p className="text-slate-600">
+                  شامل درخت حساب‌ها، آرتیکل‌های دفتر کل، فاکتورهای فروش و خرید، موجودی و سریال‌های انبار و لیست مشتریان
+                </p>
+                <button
+                  type="button"
+                  onClick={onExportFullData}
+                  className="mt-2 px-4 py-2 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800"
+                >
+                  دانلود فوری فایل خروجی کامل
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -367,51 +379,62 @@ export const FrappeCoreModule: React.FC<FrappeCoreModuleProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900">
-                  شبیه‌ساز دسترسی دقیق در سطح فیلد
+                  مدیریت دسترسی‌های دقیق در سطح نقش، شعبه و فیلد
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  مخفی‌سازی خودکار فیلدهای محرمانه («قیمت خرید»، «بهای تمام‌شده میانگین موزون» و «سود خالص») برای صندوقدار
+                  محدود کردن دسترسی کاربران به یک شعبه یا انبار خاص و مخفی‌سازی فیلدهای حساس (قیمت خرید و سود خالص)
                 </p>
               </div>
-              <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg text-xs">
-                {(['مدیر ارشد سامانه', 'صندوقدار فروشگاه'] as const).map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setPreviewRole(r)}
-                    className={`px-3 py-1.5 font-semibold rounded-md ${
-                      previewRole === r ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
-                    }`}
-                  >
-                    مشاهده با نقش: {r}
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
+                  {(['مدیر کل سامانه', 'صندوقدار فروشگاه'] as const).map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setPreviewRole(r)}
+                      className={`px-3 py-1.5 font-semibold rounded-md ${
+                        previewRole === r ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
+                      }`}
+                    >
+                      نقش: {r}
+                    </button>
+                  ))}
+                </div>
+                <select
+                  aria-label="محدودیت دسترسی شعبه"
+                  value={branchRestriction}
+                  onChange={(e) => setBranchRestriction(e.target.value as typeof branchRestriction)}
+                  className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg"
+                >
+                  <option value="همه شعب">دسترسی سند: همه شعب سازمان</option>
+                  <option value="فقط شعبه الهیه">محدودیت سند: فقط اسناد شعبه الهیه</option>
+                </select>
               </div>
             </div>
 
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
               <div>
-                <span className="text-slate-500">نام کالا:</span>
-                <div className="font-bold text-slate-900 mt-1">پاد پیک‌بار ۶۰۰۰۰ — انبه یخ</div>
+                <span className="text-slate-500">محدوده اسناد مجاز کاربر:</span>
+                <div className="font-bold text-indigo-700 mt-1">{branchRestriction}</div>
               </div>
               <div>
-                <span className="text-slate-500">قیمت فروش مشتری (سطح دسترسی عمومی):</span>
-                <div className="font-mono font-bold text-slate-900 mt-1">۱,۱۸۰,۰۰۰ تومان</div>
+                <span className="text-slate-500">قیمت فروش مشتری (فیلد عمومی):</span>
+                <div className="font-mono font-bold text-slate-900 mt-1">{formatCurrency(1180000)} تومان</div>
               </div>
               <div>
-                <span className="text-slate-500">بهای تمام‌شده خرید (سطح دسترسی مدیران):</span>
+                <span className="text-slate-500">بهای تمام‌شده خرید (فیلد محرمانه):</span>
                 <div className="font-mono font-bold text-rose-700 mt-1">
-                  {previewRole === 'مدیر ارشد سامانه'
-                    ? '۷۸۰,۰۰۰ تومان'
-                    : '🔒 مخفی (عدم دسترسی نقش صندوقدار)'}
+                  {previewRole === 'مدیر کل سامانه'
+                    ? `${formatCurrency(780000)} تومان`
+                    : '🔒 مخفی برای نقش صندوقدار'}
                 </div>
               </div>
               <div>
-                <span className="text-slate-500">سود خالص هر عدد (سطح دسترسی مدیران):</span>
+                <span className="text-slate-500">سود خالص هر عدد (فیلد محرمانه):</span>
                 <div className="font-mono font-bold text-emerald-700 mt-1">
-                  {previewRole === 'مدیر ارشد سامانه'
-                    ? '۴۰۰,۰۰۰ تومان (۳۳.۸٪)'
-                    : '🔒 مخفی (عدم دسترسی نقش صندوقدار)'}
+                  {previewRole === 'مدیر کل سامانه'
+                    ? `${formatCurrency(400000)} تومان (۳۳.۸٪)`
+                    : '🔒 مخفی برای نقش صندوقدار'}
                 </div>
               </div>
             </div>
@@ -419,7 +442,7 @@ export const FrappeCoreModule: React.FC<FrappeCoreModuleProps> = ({
 
           <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
             <h3 className="text-base font-bold text-slate-900">
-              تاریخچه تغییرات و گزارش امنیتی سامانه
+              تاریخچه تغییرات و لاگ امنیتی سامانه
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs border-collapse">
@@ -466,7 +489,7 @@ export const FrappeCoreModule: React.FC<FrappeCoreModuleProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
             <h3 className="text-base font-bold text-slate-900">
-              قوانین و اسکریپت‌های خودکار سرور
+              قوانین و اسکریپت‌نویسی سمت سرور
             </h3>
             <textarea
               rows={7}
@@ -488,22 +511,22 @@ export const FrappeCoreModule: React.FC<FrappeCoreModuleProps> = ({
 
           <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
             <h3 className="text-base font-bold text-slate-900">
-              وب‌هوک‌های دوطرفه و اتصالات یکپارچه سازمانی
+              وب‌هوک‌ها و رابط برنامه‌نویسی اتصال دوطرفه
             </h3>
             <div className="space-y-3 text-xs">
               {[
                 {
-                  name: 'وب‌هوک اتوماسیون سازمانی (ارسال آنی فاکتورهای جدید)',
-                  endpoint: 'مسیر اتصال: درگاه اتوماسیون مرکزی شرکت امکان',
+                  name: 'وب‌هوک ارسال آنی فاکتورهای جدید به نرم‌افزار بیرونی',
+                  endpoint: 'مسیر اتصال: درگاه وب‌سرویس مرکزی شرکت امکان',
                   event: 'هنگام ثبت قطعی فاکتور فروش',
                 },
                 {
-                  name: 'همگام‌سازی دوطرفه موجودی و قیمت با فروشگاه اینترنتی',
+                  name: 'رابط برنامه‌نویسی همگام‌سازی دوطرفه موجودی و قیمت با سایت فروشگاهی',
                   endpoint: 'مسیر اتصال: وب‌سرویس موجودی و لیست قیمت فروشگاه آنلاین',
                   event: 'هنگام تغییر موجودی یا قیمت کالا در انبار',
                 },
                 {
-                  name: 'ربات تلگرام گزارش‌گیری شبانه مدیران ارشد',
+                  name: 'وب‌هوک گزارش‌گیری شبانه مدیران ارشد',
                   endpoint: 'مسیر اتصال: درگاه پیام‌رسان گزارش‌های مالی مدیریت',
                   event: 'اجرای زمان‌بندی‌شده روزانه ساعت ۲۳:۰۰',
                 },

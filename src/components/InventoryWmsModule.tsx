@@ -3,8 +3,6 @@ import {
   Package,
   Layers,
   ArrowLeftRight,
-  ShieldCheck,
-  Calculator,
   ClipboardCheck,
   ShoppingCart,
   Plus,
@@ -35,8 +33,13 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
   onShowToast,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'items' | 'variants' | 'movements' | 'landed_cost' | 'reconciliation'
+    'items' | 'variants' | 'movements' | 'reconciliation' | 'material_request'
   >('items');
+
+  // Valuation Method Toggle (Moving Average / FIFO)
+  const [valuationMethod, setValuationMethod] = useState<'میانگین موزون متحرک' | 'اولین صادره از اولین وارده (فایفو)'>(
+    'میانگین موزون متحرک'
+  );
 
   // Variant Generator State
   const [templateName, setTemplateName] = useState('پاد هوشمند پیک‌بار ۶۰۰۰۰');
@@ -44,7 +47,7 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
   const [flavorsInput, setFlavorsInput] = useState('انبه یخ, هندوانه توت‌فرنگی, نعناع قطبی');
   const [nicotinesInput, setNicotinesInput] = useState('۲۰ میلی‌گرم, ۵۰ میلی‌گرم');
 
-  // Stock Movement State
+  // Stock Movement & Purchase Receipt State (No Delivery Note, No QC)
   const [stockEntries, setStockEntries] = useState([
     {
       id: 'se-1',
@@ -53,7 +56,6 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
       fromWarehouse: 'انبار مرکزی کهریزک',
       toWarehouse: 'انبار شعبه الهیه',
       itemSummary: '۵۰ عدد پاد پیک‌بار ۶۰۰۰۰ + ۲۰ بسته کارتریج',
-      packingWeight: 'وزن خالص: ۸.۴ کیلوگرم · وزن ناخالص کارتن: ۹.۱ کیلوگرم (بارنامه شماره ۹۲)',
       date: '۱۴۰۴/۰۸/۰۱',
     },
     {
@@ -63,17 +65,15 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
       fromWarehouse: 'انبار شعبه الهیه',
       toWarehouse: 'استند تستر شوروم',
       itemSummary: '۴ عدد سالت نستی ۳۰ میل جهت تست حضوری مشتریان',
-      packingWeight: 'تحویل به سرپرست شوروم',
       date: '۱۴۰۴/۰۸/۰۲',
     },
     {
       id: 'se-3',
       entryNo: 'PREC-1404-0088',
-      type: 'رسید ورود کالا و قرنطینه کیفیت',
+      type: 'رسید ورود کالا به انبار (تحویل از تامین‌کننده)',
       fromWarehouse: 'تامین‌کننده وارداتی',
       toWarehouse: 'انبار مرکزی کهریزک',
-      itemSummary: 'ورود ۵۰۰ عدد دستگاه: ۴۹۶ عدد سالم تاییدشده · ۴ عدد معیوب برگشتی',
-      packingWeight: '۵ کارتن مادر پلمپ گمرکی',
+      itemSummary: 'ورود ۵۰۰ عدد دستگاه پاد پیک‌بار ۶۰۰۰۰ به انبار مرکزی',
       date: '۱۴۰۴/۰۷/۲۹',
     },
   ]);
@@ -87,6 +87,8 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
   // Stock Reconciliation State
   const [reconSku, setReconSku] = useState(items[1]?.sku || 'PK60-BLUE-20');
   const [physicalCountInput, setPhysicalCountInput] = useState(14);
+
+  // Material Request State (Merged from Module 5: Buying & Procurement)
   const [materialRequests, setMaterialRequests] = useState([
     {
       id: 'mr-1',
@@ -96,10 +98,14 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
       currentStock: 18,
       reorderPoint: 25,
       suggestedOrderQty: 50,
-      triggerType: 'تولید خودکار توسط نقطه سفارش',
-      status: 'ارسال‌شده به واحد تدارکات و خرید',
+      warehouse: 'انبار مرکزی کهریزک',
+      triggerType: 'تولید خودکار بر اساس نقطه سفارش',
+      status: 'در انتظار تامین و خرید',
     },
   ]);
+  const [newMrSku, setNewMrSku] = useState(items[0]?.sku || 'PK60-MANGO-50');
+  const [newMrQty, setNewMrQty] = useState(40);
+  const [newMrWarehouse, setNewMrWarehouse] = useState('انبار مرکزی کهریزک');
 
   const totalExtraLanded = customsCost + freightCost + insuranceCost;
   const landedOutput = allocateLandedCost(
@@ -154,13 +160,13 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">
-            انبارداری، لجستیک و تدارکات
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200">
+        <div className="space-y-1">
+          <h2 className="text-lg font-bold text-slate-900">
+            انبارداری، کنترل موجودی و شارژ کالا
           </h2>
-          <p className="text-sm text-slate-600 mt-1">
-            تنوع کالا، ضریب تبدیل چندگانه، پکیج باندل، میانگین موزون، ردیابی سریال و تاریخ انقضا، سرشکن هزینه گمرک و انبارگردانی
+          <p className="text-sm text-slate-500">
+            مدیریت کالاها، باندل محصول، تنوع و قیمت‌گذاری، اسناد حرکت انبار، کاردکس و نقطه سفارش
           </p>
         </div>
       </div>
@@ -168,11 +174,11 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
       {/* Sub-tabs */}
       <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-200/70 rounded-xl">
         {[
-          { id: 'items', label: 'کالاها، واحدهای شمارش، باندل و سریال', icon: Package },
-          { id: 'variants', label: 'موتور تولید خودکار تنوع کالا', icon: Layers },
-          { id: 'movements', label: 'اسناد حرکت انبار، رسید خرید و بارنامه', icon: ArrowLeftRight },
-          { id: 'landed_cost', label: 'سرشکن هزینه‌های جانبی خرید', icon: Calculator },
-          { id: 'reconciliation', label: 'انبارگردانی و نقطه سفارش خودکار', icon: ClipboardCheck },
+          { id: 'items', label: 'کالاها، باندل و سریال', icon: Package },
+          { id: 'variants', label: 'تنوع کالا و قیمت‌گذاری', icon: Layers },
+          { id: 'movements', label: 'اسناد حرکت و رسید انبار', icon: ArrowLeftRight },
+          { id: 'reconciliation', label: 'انبارگردانی و کاردکس', icon: ClipboardCheck },
+          { id: 'material_request', label: 'درخواست شارژ کالا', icon: ShoppingCart },
         ].map((t) => {
           const Icon = t.icon;
           return (
@@ -186,34 +192,51 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-4 h-4 shrink-0" />
               <span>{t.label}</span>
             </button>
           );
         })}
       </div>
 
-      {/* TAB 1: ITEMS, MULTI-UOM, BUNDLES, SERIAL & BATCH */}
+      {/* TAB 1: ITEMS, BUNDLES, SERIAL & BATCH, VALUATION */}
       {activeTab === 'items' && (
-        <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
-          <div>
-            <h3 className="text-base font-bold text-slate-900">
-              دفتر کل موجودی کالا، ضرایب تبدیل چندگانه، پکیج‌های باندل و ردیابی سریال و انقضا
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              محاسبه لحظه‌ای ارزش انبار به روش «میانگین موزون متحرک» و هشدار کالاهای زیر نقطه سفارش
-            </p>
+        <div className="bg-white p-6 rounded-xl border border-slate-200 space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-slate-900">
+                فهرست کالاها، پکیج باندل و ردیابی سریال
+              </h3>
+              <p className="text-xs text-slate-500">
+                ارزش‌گذاری موجودی بر اساس «{valuationMethod}» و پایش نقطه سفارش
+              </p>
+            </div>
+            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg text-xs">
+              {(['میانگین موزون متحرک', 'اولین صادره از اولین وارده (فایفو)'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setValuationMethod(m)}
+                  className={`px-3 py-1.5 rounded-md font-semibold transition-colors whitespace-nowrap ${
+                    valuationMethod === m ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
+                  }`}
+                >
+                  روش ارزش‌گذاری: {m}
+                </button>
+              ))}
+            </div>
           </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-right text-xs border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
-                  <th className="py-2.5 px-3">کد کالا · سری ساخت</th>
-                  <th className="py-2.5 px-3">نام کالا / پکیج باندل</th>
-                  <th className="py-2.5 px-3">واحد شمارش و ضریب تبدیل</th>
-                  <th className="py-2.5 px-3">سریال‌ها و تاریخ انقضا</th>
+                  <th className="py-2.5 px-3">کد کالا · سری ساخت (بچ)</th>
+                  <th className="py-2.5 px-3">نام کالا / کیت و باندل محصول</th>
+                  <th className="py-2.5 px-3">واحد شمارش</th>
+                  <th className="py-2.5 px-3">شماره سریال‌ها و تاریخ انقضا</th>
                   <th className="py-2.5 px-3">موجودی (آزاد / رزرو)</th>
-                  <th className="py-2.5 px-3 text-left">بهای تمام‌شده (میانگین موزون)</th>
+                  <th className="py-2.5 px-3 text-left">بهای تمام‌شده واحد</th>
                   <th className="py-2.5 px-3 text-left">قیمت فروش تکی</th>
                 </tr>
               </thead>
@@ -224,7 +247,7 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
                     <tr key={item.id} className="hover:bg-slate-50">
                       <td className="py-2.5 px-3 font-mono">
                         <div className="font-semibold text-slate-900">{item.sku}</div>
-                        <div className="text-slate-500">سری ساخت: {item.batchNo}</div>
+                        <div className="text-slate-500">بچ: {item.batchNo}</div>
                       </td>
                       <td className="py-2.5 px-3">
                         <div className="font-bold text-slate-900">{item.name}</div>
@@ -238,16 +261,13 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
                           )}
                           {item.isBundle && item.bundleComponents && (
                             <div className="text-indigo-700 font-medium mt-0.5">
-                              اجزای پکیج (کسر خودکار از انبار): {item.bundleComponents.join(' + ')}
+                              اجزای باندل (کسر خودکار از انبار هنگام فروش): {item.bundleComponents.join(' + ')}
                             </div>
                           )}
                         </div>
                       </td>
-                      <td className="py-2.5 px-3 text-slate-600">
-                        <div>واحد پایه: {item.uomPrimary}</div>
-                        <div className="text-slate-500">
-                          ۱ {item.uomSecondary} = {item.conversionFactor} {item.uomPrimary}
-                        </div>
+                      <td className="py-2.5 px-3 text-slate-700 font-medium">
+                        {item.uomPrimary}
                       </td>
                       <td className="py-2.5 px-3 text-slate-600">
                         <div className="font-mono text-[11px]">
@@ -270,7 +290,7 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
                       <td className="py-2.5 px-3 font-mono tabular-nums text-left text-slate-700">
                         {checkRolePermission(activeRole, 'view_buying_cost')
                           ? `${formatCurrency(item.valuationRate)} ت`
-                          : '🔒 مخفی (عدم دسترسی)'}
+                          : '🔒 مخفی'}
                       </td>
                       <td className="py-2.5 px-3 font-mono tabular-nums font-bold text-left text-slate-900">
                         {formatCurrency(item.retailPrice)} ت
@@ -284,377 +304,602 @@ export const InventoryWmsModule: React.FC<InventoryWmsModuleProps> = ({
         </div>
       )}
 
-      {/* TAB 2: ITEM VARIANTS GENERATOR */}
+      {/* TAB 2: ITEM VARIANTS & DYNAMIC PRICING RULES */}
       {activeTab === 'variants' && (
-        <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
-          <div>
-            <h3 className="text-base font-bold text-slate-900">
-              تولید خودکار زیرکالاها از کالای مادر بر اساس ماتریس ویژگی‌ها
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              تعریف یک کالای مادر و ساخت خودکار تمامی زیرکالاها بر اساس ویژگی‌ها (طعم، نیکوتین، رنگ، وضعیت آکبند/کارکرده)
-            </p>
+        <div className="space-y-6">
+          <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                تولید خودکار زیرکالاها از کالای مادر بر اساس ماتریس ویژگی‌ها
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                تعریف یک کالای مادر و تولید خودکار زیرکالاها بر اساس ویژگی‌ها (رنگ، سایز، طعم یا میزان نیکوتین)
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">نام کالای مادر</label>
+                <input
+                  type="text"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">پیشوند کد کالا</label>
+                <input
+                  type="text"
+                  value={templateSku}
+                  onChange={(e) => setTemplateSku(e.target.value)}
+                  className="w-full px-3 py-2 font-mono border border-slate-300 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">ویژگی طعم‌ها / رنگ (با ویرگول)</label>
+                <input
+                  type="text"
+                  value={flavorsInput}
+                  onChange={(e) => setFlavorsInput(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">ویژگی دوم (میزان نیکوتین / سایز)</label>
+                <input
+                  type="text"
+                  value={nicotinesInput}
+                  onChange={(e) => setNicotinesInput(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-800">
+                  پیش‌نمایش {previewVariants.length} زیرکالای تولیدشده:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const created: InventoryItemRecord[] = previewVariants.map((v, i) => ({
+                      id: `var-${Date.now()}-${i}`,
+                      sku: v.sku,
+                      name: v.variantName,
+                      category: 'دستگاه پاد و ماد',
+                      brand: 'پیک‌بار',
+                      flavor: v.flavor,
+                      nicotine: v.nicotine,
+                      condition: 'آکبند شرکتی',
+                      uomPrimary: 'عدد',
+                      stockQty: 40,
+                      reservedQty: 0,
+                      reorderLevel: 15,
+                      valuationRate: 780000,
+                      retailPrice: 1180000,
+                      wholesalePrice: 960000,
+                      partnerPrice: 1020000,
+                      serialNumbers: [`SN-${v.sku}-01`],
+                      batchNo: 'BCH-2026-NEW',
+                      expiryDate: '۱۴۰۶/۰۸/۰۱',
+                      daysInStock: 1,
+                    }));
+                    onAddGeneratedVariants(created);
+                    onShowToast(`${created.length} زیرکالای جدید با موفقیت به انبار اضافه شدند.`);
+                  }}
+                  className="px-4 py-2 font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
+                >
+                  + ثبت و افزودن تمامی زیرکالاها به انبار
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs">
+                {previewVariants.map((v) => (
+                  <div key={v.sku} className="p-3 rounded-lg border border-slate-200 bg-slate-50">
+                    <div className="font-mono font-semibold text-indigo-700">{v.sku}</div>
+                    <div className="font-bold text-slate-900 mt-0.5">{v.variantName}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+          {/* Dynamic Pricing & Discount Rules */}
+          <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
             <div>
-              <label className="block font-medium text-slate-700 mb-1">نام کالای مادر</label>
-              <input
-                type="text"
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-              />
+              <h3 className="text-base font-bold text-slate-900">
+                قیمت‌گذاری پویا و قوانین تخفیف پلکانی کالاها
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                تعریف قیمت‌های متفاوت برای خرید تکی، عمده و همکاری، و اعمال خودکار تخفیف‌های حجمی و فصلی
+              </p>
             </div>
-            <div>
-              <label className="block font-medium text-slate-700 mb-1">پیشوند کد کالا</label>
-              <input
-                type="text"
-                value={templateSku}
-                onChange={(e) => setTemplateSku(e.target.value)}
-                className="w-full px-3 py-2 font-mono border border-slate-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block font-medium text-slate-700 mb-1">ویژگی طعم‌ها (با ویرگول)</label>
-              <input
-                type="text"
-                value={flavorsInput}
-                onChange={(e) => setFlavorsInput(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block font-medium text-slate-700 mb-1">میزان نیکوتین (با ویرگول)</label>
-              <input
-                type="text"
-                value={nicotinesInput}
-                onChange={(e) => setNicotinesInput(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div className="p-4 rounded-xl border border-slate-200 space-y-1">
+                <div className="font-bold text-slate-900">قانون ۱: تخفیف پلکانی خرید حجمی</div>
+                <div className="text-slate-600">خرید ۵ تا ۲۰ عدد از یک کالا ⬅ ۵٪ تخفیف خودکار</div>
+                <div className="text-indigo-700 font-medium">خرید بالای ۲۰ کارتن ⬅ قیمت عمده ویژه (-۱۸٪)</div>
+              </div>
+              <div className="p-4 rounded-xl border border-slate-200 space-y-1">
+                <div className="font-bold text-slate-900">قانون ۲: اشانتیون خودکار باندل</div>
+                <div className="text-slate-600">خرید حداقل ۳ دستگاه پاد هوشمند ⬅ ۱ عدد بند گردنی رایگان</div>
+                <div className="text-emerald-700 font-medium">وضعیت: فعال در صندوق و فاکتور فروش</div>
+              </div>
+              <div className="p-4 rounded-xl border border-slate-200 space-y-1">
+                <div className="font-bold text-slate-900">قانون ۳: لیست قیمت اختصاصی همکاران</div>
+                <div className="text-slate-600">اعمال خودکار نرخ همکار (-۱۲٪) برای مشتریان گروه پخش</div>
+                <div className="text-emerald-700 font-medium">وضعیت: فعال روی تمامی کالاها</div>
+              </div>
             </div>
           </div>
+        </div>
+      )}
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-800">
-                پیش‌نمایش {previewVariants.length} زیرکالای تولیدشده:
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  const created: InventoryItemRecord[] = previewVariants.map((v, i) => ({
-                    id: `var-${Date.now()}-${i}`,
-                    sku: v.sku,
-                    name: v.variantName,
-                    category: 'دستگاه پاد و ماد',
-                    brand: 'پیک‌بار',
-                    flavor: v.flavor,
-                    nicotine: v.nicotine,
-                    condition: 'آکبند شرکتی',
-                    uomPrimary: 'عدد',
-                    uomSecondary: 'بسته ۱۰ عددی',
-                    conversionFactor: 10,
-                    stockQty: 40,
-                    reservedQty: 0,
-                    reorderLevel: 15,
-                    valuationRate: 780000,
-                    retailPrice: 1180000,
-                    wholesalePrice: 960000,
-                    partnerPrice: 1020000,
-                    serialNumbers: [`SN-${v.sku}-01`],
-                    batchNo: 'BCH-2026-NEW',
-                    expiryDate: '۱۴۰۶/۰۸/۰۱',
-                  }));
-                  onAddGeneratedVariants(created);
-                  onShowToast(`${created.length} تنوع کالای جدید با موفقیت به انبار اضافه شدند.`);
-                }}
-                className="px-4 py-2 font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
-              >
-                + ثبت و افزودن تمامی زیرکالاها به انبار
-              </button>
+      {/* TAB 3: STOCK MOVEMENTS, PURCHASE RECEIPT & LANDED COST */}
+      {activeTab === 'movements' && (
+        <div className="space-y-6">
+          <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  اسناد حرکت انبار و رسید ورود کالا به انبار
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  ثبت انتقال بین انبارها، مصرف داخلی و رسید تحویل فیزیکی بار از تامین‌کننده پیش از صدور فاکتور مالی
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStockEntries([
+                      {
+                        id: `se-${Date.now()}`,
+                        entryNo: `PREC-1404-${89 + stockEntries.length}`,
+                        type: 'رسید ورود کالا به انبار (تحویل از تامین‌کننده)',
+                        fromWarehouse: 'تامین‌کننده رسمی',
+                        toWarehouse: 'انبار مرکزی کهریزک',
+                        itemSummary: 'ورود ۱۰۰ عدد سالت نستی ۳۰ میل و ۵۰ بسته کارتریج',
+                        date: '۱۴۰۴/۰۸/۰۲',
+                      },
+                      ...stockEntries,
+                    ]);
+                    onShowToast('رسید ورود کالا به انبار صادر شد.');
+                  }}
+                  className="px-3.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 whitespace-nowrap"
+                >
+                  + ثبت رسید ورود کالا به انبار
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStockEntries([
+                      {
+                        id: `se-${Date.now()}`,
+                        entryNo: `STE-1404-${212 + stockEntries.length}`,
+                        type: 'انتقال بین انبارها',
+                        fromWarehouse: 'انبار مرکزی کهریزک',
+                        toWarehouse: 'انبار شعبه الهیه',
+                        itemSummary: 'انتقال ۳۰ عدد پاد پیک‌بار ۶۰۰۰۰ به شوروم الهیه',
+                        date: '۱۴۰۴/۰۸/۰۲',
+                      },
+                      ...stockEntries,
+                    ]);
+                    onShowToast('سند انتقال بین انبارها ثبت شد.');
+                  }}
+                  className="px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 whitespace-nowrap"
+                >
+                  + ثبت سند حرکت انبار
+                </button>
+              </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs">
-              {previewVariants.map((v) => (
-                <div key={v.sku} className="p-3 rounded-lg border border-slate-200 bg-slate-50">
-                  <div className="font-mono font-semibold text-indigo-700">{v.sku}</div>
-                  <div className="font-bold text-slate-900 mt-0.5">{v.variantName}</div>
+
+            <div className="space-y-3 text-xs">
+              {stockEntries.map((se) => (
+                <div
+                  key={se.id}
+                  className="p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-indigo-700">{se.entryNo}</span>
+                      <span aria-hidden="true">·</span>
+                      <span className="font-bold text-slate-900">{se.type}</span>
+                    </div>
+                    <div className="text-slate-700">
+                      مبدا: <strong>{se.fromWarehouse}</strong> ← مقصد: <strong>{se.toWarehouse}</strong> · {se.itemSummary}
+                    </div>
+                  </div>
+                  <div className="font-mono text-slate-500">{se.date}</div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      )}
 
-      {/* TAB 3: STOCK MOVEMENTS, PURCHASE RECEIPT & PACKING SLIP */}
-      {activeTab === 'movements' && (
-        <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
-          <div className="flex items-center justify-between">
+          {/* Landed Cost Voucher */}
+          <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-5">
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                اسناد حرکت انبار، رسید کنترل کیفیت ورود کالا و بارنامه
+                سرشکن کردن هزینه‌های جانبی خرید روی بهای تمام‌شده کالا
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                انتقال بین انبارها، مصرف داخلی و تستر، بسته‌بندی مجدد و ثبت وزن خالص و ناخالص کارتن‌ها
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setStockEntries([
-                  {
-                    id: `se-${Date.now()}`,
-                    entryNo: `STE-1404-${212 + stockEntries.length}`,
-                    type: 'بسته‌بندی مجدد پکیج',
-                    fromWarehouse: 'انبار مرکزی کهریزک',
-                    toWarehouse: 'انبار فروش آنلاین',
-                    itemSummary: 'تولید ۲۰ پکیج استارتر از کالاهای منفرد انبار',
-                    packingWeight: 'وزن خالص: ۶.۲ کیلوگرم · وزن ناخالص: ۶.۸ کیلوگرم',
-                    date: '۱۴۰۴/۰۸/۰۲',
-                  },
-                  ...stockEntries,
-                ]);
-                onShowToast('سند حرکت انبار و بارنامه جدید صادر شد.');
-              }}
-              className="px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 whitespace-nowrap"
-            >
-              + ثبت سند حرکت انبار / بارنامه جدید
-            </button>
-          </div>
-
-          <div className="space-y-3 text-xs">
-            {stockEntries.map((se) => (
-              <div
-                key={se.id}
-                className="p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-indigo-700">{se.entryNo}</span>
-                    <span aria-hidden="true">·</span>
-                    <span className="font-bold text-slate-900">{se.type}</span>
-                  </div>
-                  <div className="text-slate-700">
-                    از: <strong>{se.fromWarehouse}</strong> ← به: <strong>{se.toWarehouse}</strong> · {se.itemSummary}
-                  </div>
-                  <div className="text-slate-500">{se.packingWeight}</div>
-                </div>
-                <div className="font-mono text-slate-500">{se.date}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 4: LANDED COST VOUCHER */}
-      {activeTab === 'landed_cost' && (
-        <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-5">
-          <div>
-            <h3 className="text-base font-bold text-slate-900">
-              سرشکن کردن هزینه‌های جانبی خرید روی بهای تمام‌شده کالا
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              تقسیم خودکار هزینه گمرک، باربری، تیپاکس و بیمه روی تک‌تک کالاهای فاکتور خرید بر اساس مبلغ، تعداد یا وزن
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
-            <div>
-              <label className="block font-medium text-slate-700 mb-1">هزینه گمرک و ترخیص (تومان)</label>
-              <input
-                type="number"
-                value={customsCost}
-                onChange={(e) => setCustomsCost(Number(e.target.value) || 0)}
-                className="w-full px-3 py-2 font-mono border border-slate-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block font-medium text-slate-700 mb-1">هزینه حمل هوایی و باربری (تومان)</label>
-              <input
-                type="number"
-                value={freightCost}
-                onChange={(e) => setFreightCost(Number(e.target.value) || 0)}
-                className="w-full px-3 py-2 font-mono border border-slate-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block font-medium text-slate-700 mb-1">هزینه بیمه باربری (تومان)</label>
-              <input
-                type="number"
-                value={insuranceCost}
-                onChange={(e) => setInsuranceCost(Number(e.target.value) || 0)}
-                className="w-full px-3 py-2 font-mono border border-slate-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block font-medium text-slate-700 mb-1">مبنای تسهیم هزینه</label>
-              <select
-                aria-label="مبنای تسهیم هزینه جانبی"
-                value={landedBasis}
-                onChange={(e) => setLandedBasis(e.target.value as 'amount' | 'qty' | 'weight')}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-              >
-                <option value="amount">بر اساس مبلغ ارزی/ریالی کالا</option>
-                <option value="qty">بر اساس تعداد کالا</option>
-                <option value="weight">بر اساس وزن ناخالص (گرم)</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-right text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
-                  <th className="py-2.5 px-3">کد و نام کالا</th>
-                  <th className="py-2.5 px-3">تعداد · وزن واحد</th>
-                  <th className="py-2.5 px-3 text-left">قیمت خرید اولیه (واحد)</th>
-                  <th className="py-2.5 px-3 text-left">سهم از هزینه جانبی (کل ردیف)</th>
-                  <th className="py-2.5 px-3 text-left">بهای تمام‌شده نهایی هر عدد</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {landedOutput.map((row) => (
-                  <tr key={row.itemCode} className="hover:bg-slate-50">
-                    <td className="py-2.5 px-3 font-bold text-slate-900">
-                      <span className="font-mono text-slate-500 ml-2">{row.itemCode}</span>
-                      {row.itemName}
-                    </td>
-                    <td className="py-2.5 px-3 font-mono text-slate-600">
-                      {row.qty} عدد · {row.weightGrams} گرم
-                    </td>
-                    <td className="py-2.5 px-3 font-mono tabular-nums text-left">
-                      {formatCurrency(row.unitCost)} ت
-                    </td>
-                    <td className="py-2.5 px-3 font-mono tabular-nums text-left text-indigo-700 font-semibold">
-                      +{formatCurrency(row.allocatedLandedCost)} ت
-                    </td>
-                    <td className="py-2.5 px-3 font-mono tabular-nums text-left text-emerald-700 font-bold">
-                      {formatCurrency(row.finalUnitCost)} تومان
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 5: STOCK RECONCILIATION & AUTO RE-ORDER */}
-      {activeTab === 'reconciliation' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
-            <div>
-              <h3 className="text-base font-bold text-slate-900">
-                انبارگردانی و تعدیل موجودی فیزیکی قفسه‌ها
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                مقایسه شمارش فیزیکی انبارگردانی با موجودی سیستم و صدور خودکار سند مالی کسری یا اضافات انبار
+                تقسیم خودکار هزینه گمرک، باربری و بیمه روی کالاهای ورودی به انبار بر اساس مبلغ، تعداد یا وزن
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
               <div>
-                <label className="block font-medium text-slate-700 mb-1">انتخاب کالا جهت شمارش</label>
+                <label className="block font-medium text-slate-700 mb-1">هزینه گمرک و ترخیص (تومان)</label>
+                <input
+                  type="number"
+                  value={customsCost}
+                  onChange={(e) => setCustomsCost(Number(e.target.value) || 0)}
+                  className="w-full px-3 py-2 font-mono border border-slate-300 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">هزینه حمل و باربری (تومان)</label>
+                <input
+                  type="number"
+                  value={freightCost}
+                  onChange={(e) => setFreightCost(Number(e.target.value) || 0)}
+                  className="w-full px-3 py-2 font-mono border border-slate-300 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">هزینه بیمه باربری (تومان)</label>
+                <input
+                  type="number"
+                  value={insuranceCost}
+                  onChange={(e) => setInsuranceCost(Number(e.target.value) || 0)}
+                  className="w-full px-3 py-2 font-mono border border-slate-300 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">مبنای تسهیم هزینه</label>
                 <select
-                  aria-label="کالای انبارگردانی"
-                  value={reconSku}
-                  onChange={(e) => setReconSku(e.target.value)}
+                  aria-label="مبنای تسهیم هزینه جانبی"
+                  value={landedBasis}
+                  onChange={(e) => setLandedBasis(e.target.value as 'amount' | 'qty' | 'weight')}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg"
                 >
-                  {items.map((i) => (
-                    <option key={i.id} value={i.sku}>
-                      {i.name} (سیستم: {i.stockQty})
+                  <option value="amount">بر اساس مبلغ کالا</option>
+                  <option value="qty">بر اساس تعداد کالا</option>
+                  <option value="weight">بر اساس وزن ناخالص (گرم)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-right text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
+                    <th className="py-2.5 px-3">کد و نام کالا</th>
+                    <th className="py-2.5 px-3">تعداد · وزن واحد</th>
+                    <th className="py-2.5 px-3 text-left">قیمت خرید اولیه (واحد)</th>
+                    <th className="py-2.5 px-3 text-left">سهم از هزینه جانبی (کل ردیف)</th>
+                    <th className="py-2.5 px-3 text-left">بهای تمام‌شده نهایی هر عدد</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {landedOutput.map((row) => (
+                    <tr key={row.itemCode} className="hover:bg-slate-50">
+                      <td className="py-2.5 px-3 font-bold text-slate-900">
+                        <span className="font-mono text-slate-500 ml-2">{row.itemCode}</span>
+                        {row.itemName}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-slate-600">
+                        {row.qty} عدد · {row.weightGrams} گرم
+                      </td>
+                      <td className="py-2.5 px-3 font-mono tabular-nums text-left">
+                        {formatCurrency(row.unitCost)} ت
+                      </td>
+                      <td className="py-2.5 px-3 font-mono tabular-nums text-left text-indigo-700 font-semibold">
+                        +{formatCurrency(row.allocatedLandedCost)} ت
+                      </td>
+                      <td className="py-2.5 px-3 font-mono tabular-nums text-left text-emerald-700 font-bold">
+                        {formatCurrency(row.finalUnitCost)} تومان
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: STOCK RECONCILIATION, STOCK LEDGER (KARDEX) & STOCK AGING */}
+      {activeTab === 'reconciliation' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  انبارگردانی و تعدیل موجودی فیزیکی قفسه‌ها
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  وارد کردن شمارش فیزیکی انبارگردانی و صدور خودکار سند کسری یا اضافات انبار
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="block font-medium text-slate-700 mb-1">انتخاب کالا جهت شمارش</label>
+                  <select
+                    aria-label="کالای انبارگردانی"
+                    value={reconSku}
+                    onChange={(e) => setReconSku(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  >
+                    {items.map((i) => (
+                      <option key={i.id} value={i.sku}>
+                        {i.name} (سیستم: {i.stockQty})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-medium text-slate-700 mb-1">
+                    شمارش فیزیکی قفسه
+                  </label>
+                  <input
+                    type="number"
+                    aria-label="تعداد شمارش فیزیکی"
+                    value={physicalCountInput}
+                    onChange={(e) => setPhysicalCountInput(Math.max(0, Number(e.target.value) || 0))}
+                    className="w-full px-3 py-2 font-mono border border-slate-300 rounded-lg"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 space-y-1.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">موجودی فعلی سیستم:</span>
+                  <span className="font-mono font-bold">{selectedReconItem.stockQty} عدد</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">مغایرت انبارگردانی (کسری / اضافات):</span>
+                  <span
+                    className={`font-mono font-bold ${
+                      reconResult.varianceQty < 0 ? 'text-rose-700' : 'text-emerald-700'
+                    }`}
+                  >
+                    {reconResult.varianceQty > 0 ? `+${reconResult.varianceQty}` : reconResult.varianceQty} عدد
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">ارزش ریالی سند تعدیل انبار:</span>
+                  <span className="font-mono font-bold">
+                    {formatCurrency(reconResult.varianceValue)} تومان
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdateItemStock(selectedReconItem.sku, physicalCountInput);
+                  if (reconResult.needsAutoReorder) {
+                    setMaterialRequests([
+                      {
+                        id: `mr-${Date.now()}`,
+                        reqNo: `MREQ-1404-00${92 + materialRequests.length}`,
+                        sku: selectedReconItem.sku,
+                        itemName: selectedReconItem.name,
+                        currentStock: physicalCountInput,
+                        reorderPoint: selectedReconItem.reorderLevel,
+                        suggestedOrderQty: reconResult.suggestedOrderQty,
+                        warehouse: 'انبار مرکزی کهریزک',
+                        triggerType: 'تولید خودکار پس از انبارگردانی',
+                        status: 'در انتظار تامین و خرید',
+                      },
+                      ...materialRequests,
+                    ]);
+                  }
+                  onShowToast(
+                    `موجودی کالای ${selectedReconItem.sku} به ${physicalCountInput} عدد تعدیل شد.`
+                  );
+                }}
+                className="w-full py-2 px-4 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
+              >
+                ثبت سند تعدیل انبارگردانی و به‌روزرسانی موجودی
+              </button>
+            </div>
+
+            {/* Stock Aging Report */}
+            <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  گزارش سن موجودی و شناسایی کالاهای رسوب‌کرده
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  بررسی مدت ماندگاری کالاها در انبار جهت شناسایی اقلام کم‌گردش یا نزدیک به انقضا
+                </p>
+              </div>
+              <div className="space-y-2.5 text-xs">
+                {items.map((it) => {
+                  const age = it.daysInStock || 20;
+                  const slowMoving = age > 60;
+                  return (
+                    <div
+                      key={it.id}
+                      className="p-3 rounded-lg border border-slate-200 flex items-center justify-between"
+                    >
+                      <div>
+                        <div className="font-bold text-slate-900">{it.name}</div>
+                        <div className="text-slate-500">
+                          موجودی: {it.stockQty} {it.uomPrimary} · انقضا: {it.expiryDate}
+                        </div>
+                      </div>
+                      <div className="text-left">
+                        <div
+                          className={`font-mono font-bold ${
+                            slowMoving ? 'text-amber-700' : 'text-emerald-700'
+                          }`}
+                        >
+                          سن موجودی: {age} روز
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          {slowMoving ? 'کم‌گردش / نیازمند پروموشن' : 'گردش سریع و مطلوب'}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Item Kardex / Stock Ledger */}
+          <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
+            <h3 className="text-base font-bold text-slate-900">
+              کاردکس کالا (ریز گردش ورود، خروج و مانده لحظه‌ای در انبار)
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-right text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
+                    <th className="py-2.5 px-3">تاریخ</th>
+                    <th className="py-2.5 px-3">شماره سند مرجع</th>
+                    <th className="py-2.5 px-3">نام کالا</th>
+                    <th className="py-2.5 px-3">انبار</th>
+                    <th className="py-2.5 px-3 text-left">تعداد وارده / صادره</th>
+                    <th className="py-2.5 px-3 text-left">مانده پس از تراکنش</th>
+                    <th className="py-2.5 px-3 text-left">نرخ میانگین موزون</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  <tr>
+                    <td className="py-2 px-3 font-mono text-slate-500">۱۴۰۴/۰۷/۲۰</td>
+                    <td className="py-2 px-3 font-mono font-semibold text-indigo-700">PINV-1404-0084</td>
+                    <td className="py-2 px-3 font-medium text-slate-900">پاد هوشمند پیک‌بار ۶۰۰۰۰ — انبه یخ</td>
+                    <td className="py-2 px-3 text-slate-600">انبار مرکزی کهریزک</td>
+                    <td className="py-2 px-3 font-mono font-bold text-left text-emerald-700">+۲۴۲ عدد</td>
+                    <td className="py-2 px-3 font-mono text-left">۲۴۲ عدد</td>
+                    <td className="py-2 px-3 font-mono text-left">{formatCurrency(780000)} ت</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 px-3 font-mono text-slate-500">۱۴۰۴/۰۸/۰۱</td>
+                    <td className="py-2 px-3 font-mono font-semibold text-indigo-700">SINV-1404-0108</td>
+                    <td className="py-2 px-3 font-medium text-slate-900">پاد هوشمند پیک‌بار ۶۰۰۰۰ — انبه یخ</td>
+                    <td className="py-2 px-3 text-slate-600">انبار مرکزی کهریزک</td>
+                    <td className="py-2 px-3 font-mono font-bold text-left text-rose-700">-۱۰۰ عدد</td>
+                    <td className="py-2 px-3 font-mono text-left">۱۴۲ عدد</td>
+                    <td className="py-2 px-3 font-mono text-left">{formatCurrency(780000)} ت</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: MATERIAL REQUEST (درخواست شارژ کالا - Merged from Module 5) */}
+      {activeTab === 'material_request' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200 space-y-4">
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                ثبت دستی درخواست شارژ کالا
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                ثبت درخواست تامین برای شارژ مجدد انبارها (علاوه بر درخواست‌های خودکار نقطه سفارش)
+              </p>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const targetItem = items.find((i) => i.sku === newMrSku) || items[0];
+                setMaterialRequests([
+                  {
+                    id: `mr-${Date.now()}`,
+                    reqNo: `MREQ-1404-00${92 + materialRequests.length}`,
+                    sku: targetItem.sku,
+                    itemName: targetItem.name,
+                    currentStock: targetItem.stockQty,
+                    reorderPoint: targetItem.reorderLevel,
+                    suggestedOrderQty: newMrQty,
+                    warehouse: newMrWarehouse,
+                    triggerType: 'ثبت دستی توسط سرپرست انبار',
+                    status: 'ارسال‌شده جهت خرید',
+                  },
+                  ...materialRequests,
+                ]);
+                onShowToast(`درخواست شارژ کالا برای «${targetItem.name}» ثبت شد.`);
+              }}
+              className="space-y-3 text-xs"
+            >
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">انتخاب کالا جهت شارژ مجدد</label>
+                <select
+                  aria-label="انتخاب کالا برای درخواست شارژ"
+                  value={newMrSku}
+                  onChange={(e) => setNewMrSku(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                >
+                  {items.map((it) => (
+                    <option key={it.id} value={it.sku}>
+                      {it.name} (موجودی فعلی: {it.stockQty} · نقطه سفارش: {it.reorderLevel})
                     </option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block font-medium text-slate-700 mb-1">
-                  شمارش فیزیکی قفسه
-                </label>
+                <label className="block font-medium text-slate-700 mb-1">انبار متقاضی شارژ</label>
+                <select
+                  aria-label="انبار متقاضی شارژ"
+                  value={newMrWarehouse}
+                  onChange={(e) => setNewMrWarehouse(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                >
+                  <option value="انبار مرکزی کهریزک">انبار مرکزی کهریزک</option>
+                  <option value="انبار شعبه الهیه">انبار شعبه الهیه</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">تعداد مورد نیاز جهت سفارش</label>
                 <input
                   type="number"
-                  aria-label="تعداد شمارش فیزیکی"
-                  value={physicalCountInput}
-                  onChange={(e) => setPhysicalCountInput(Math.max(0, Number(e.target.value) || 0))}
+                  min={1}
+                  value={newMrQty}
+                  onChange={(e) => setNewMrQty(Math.max(1, Number(e.target.value) || 1))}
                   className="w-full px-3 py-2 font-mono border border-slate-300 rounded-lg"
                 />
               </div>
-            </div>
-
-            <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 space-y-1.5 text-xs">
-              <div className="flex justify-between">
-                <span className="text-slate-600">موجودی فعلی سیستم:</span>
-                <span className="font-mono font-bold">{selectedReconItem.stockQty} عدد</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600">مغایرت انبارگردانی (کسری / اضافات):</span>
-                <span
-                  className={`font-mono font-bold ${
-                    reconResult.varianceQty < 0 ? 'text-rose-700' : 'text-emerald-700'
-                  }`}
-                >
-                  {reconResult.varianceQty > 0 ? `+${reconResult.varianceQty}` : reconResult.varianceQty} عدد
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600">ارزش ریالی سند تعدیل انبار:</span>
-                <span className="font-mono font-bold">
-                  {formatCurrency(reconResult.varianceValue)} تومان
-                </span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                onUpdateItemStock(selectedReconItem.sku, physicalCountInput);
-                if (reconResult.needsAutoReorder) {
-                  setMaterialRequests([
-                    {
-                      id: `mr-${Date.now()}`,
-                      reqNo: `MREQ-1404-00${92 + materialRequests.length}`,
-                      sku: selectedReconItem.sku,
-                      itemName: selectedReconItem.name,
-                      currentStock: physicalCountInput,
-                      reorderPoint: selectedReconItem.reorderLevel,
-                      suggestedOrderQty: reconResult.suggestedOrderQty,
-                      triggerType: 'نقطه سفارش خودکار پس از انبارگردانی',
-                      status: 'در انتظار تایید مدیر خرید',
-                    },
-                    ...materialRequests,
-                  ]);
-                }
-                onShowToast(
-                  `موجودی کالای ${selectedReconItem.sku} به ${physicalCountInput} عدد تعدیل شد و سند مالی انبارگردانی صادر گردید.`
-                );
-              }}
-              className="w-full py-2 px-4 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
-            >
-              ثبت سند تعدیل انبارگردانی و به‌روزرسانی موجودی
-            </button>
+              <button
+                type="submit"
+                className="w-full py-2 px-4 font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 inline-flex items-center justify-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" />
+                <span>ثبت درخواست شارژ کالا</span>
+              </button>
+            </form>
           </div>
 
-          {/* Material Requests & Auto Reorder */}
-          <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
+          <div className="lg:col-span-7 bg-white p-5 rounded-xl border border-slate-200 space-y-4">
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                درخواست مواد و کالا و نقطه سفارش خودکار
+                لیست درخواست‌های شارژ کالا (دستی و خودکار بر اساس نقطه سفارش)
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                به محض رسیدن موجودی کالا به حداقل مجاز، سیستم خودکار درخواست خرید صادر می‌کند.
+                به محض رسیدن موجودی هر کالا به نقطه سفارش، درخواست شارژ به صورت خودکار تولید می‌شود.
               </p>
             </div>
             <div className="space-y-3 text-xs">
               {materialRequests.map((mr) => (
-                <div key={mr.id} className="p-3.5 rounded-lg border border-slate-200 space-y-1">
+                <div key={mr.id} className="p-4 rounded-xl border border-slate-200 space-y-1.5">
                   <div className="flex justify-between font-bold text-slate-900">
-                    <span className="font-mono text-indigo-700">{mr.reqNo}</span>
-                    <span>پیشنهاد خرید: {mr.suggestedOrderQty} عدد</span>
+                    <span className="font-mono text-indigo-700">{mr.reqNo} · {mr.warehouse}</span>
+                    <span className="text-emerald-700">تعداد درخواستی: {mr.suggestedOrderQty} عدد</span>
                   </div>
                   <div className="font-semibold text-slate-800">{mr.itemName}</div>
-                  <div className="text-slate-500">
-                    موجودی فعلی: {mr.currentStock} · نقطه سفارش: {mr.reorderPoint} · {mr.triggerType}
+                  <div className="flex justify-between text-slate-500 pt-1">
+                    <span>
+                      موجودی فعلی: {mr.currentStock} · نقطه سفارش: {mr.reorderPoint} ({mr.triggerType})
+                    </span>
+                    <span className="font-medium text-slate-700">{mr.status}</span>
                   </div>
                 </div>
               ))}

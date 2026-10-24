@@ -83,13 +83,13 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">
-            مدیریت ارتباط با مشتریان و بازاریابی
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200">
+        <div className="space-y-1">
+          <h2 className="text-lg font-bold text-slate-900">
+            ارتباط با مشتریان و بازاریابی
           </h2>
-          <p className="text-sm text-slate-600 mt-1">
-            قیف سرنخ‌ها و فرصت‌های فروش، ردیابی کمپین‌های تبلیغاتی و اینفلوئنسرها، تقویم جلسات، ارزش طول عمر مشتری و خبرنامه هدفمند
+          <p className="text-sm text-slate-500">
+            قیف سرنخ‌های فروش، کمپین‌های تبلیغاتی، تقویم جلسات و ارسال خبرنامه هدفمند
           </p>
         </div>
         <button
@@ -97,8 +97,8 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
           onClick={() => setShowNewLeadForm(!showNewLeadForm)}
           className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 whitespace-nowrap shrink-0"
         >
-          <Plus className="w-4 h-4" />
-          <span>ثبت سرنخ / فرصت فروش جدید</span>
+          <Plus className="w-4 h-4 shrink-0" />
+          <span>ثبت سرنخ فروش جدید</span>
         </button>
       </div>
 
@@ -166,12 +166,12 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
       )}
 
       {/* Sub-tabs */}
-      <div className="flex items-center gap-1.5 p-1.5 bg-slate-200/70 rounded-xl w-fit">
+      <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-200/70 rounded-xl w-fit">
         {[
-          { id: 'pipeline', label: 'قیف سرنخ‌ها، فرصت‌ها و ارزش طول عمر مشتری', icon: Users },
-          { id: 'campaigns', label: 'کمپین‌های تبلیغاتی و نرخ بازگشت سرمایه', icon: Megaphone },
-          { id: 'appointments', label: 'قرارهای ملاقات و تقویم جلسات', icon: Calendar },
-          { id: 'newsletter', label: 'خبرنامه و پیام گروهی هوشمند', icon: Send },
+          { id: 'pipeline', label: 'قیف فروش و مشتریان', icon: Users },
+          { id: 'campaigns', label: 'کمپین‌های تبلیغاتی', icon: Megaphone },
+          { id: 'appointments', label: 'تقویم و قرار ملاقات', icon: Calendar },
+          { id: 'newsletter', label: 'خبرنامه و پیام گروهی', icon: Send },
         ].map((t) => {
           const Icon = t.icon;
           return (
@@ -185,7 +185,7 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-4 h-4 shrink-0" />
               <span>{t.label}</span>
             </button>
           );
@@ -194,13 +194,13 @@ export const CrmMarketingModule: React.FC<CrmMarketingModuleProps> = ({
 
       {/* TAB 1: LEADS, OPPORTUNITIES & CUSTOMER ANALYTICS */}
       {activeTab === 'pipeline' && (
-        <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
-          <div>
+        <div className="bg-white p-6 rounded-xl border border-slate-200 space-y-4">
+          <div className="space-y-1">
             <h3 className="text-base font-bold text-slate-900">
-              مدیریت سرنخ‌ها، فرصت‌های فروش و تحلیل رفتار خرید مشتریان
+              سرنخ‌ها، فرصت‌های فروش و وفاداری مشتریان
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              پایش احتمال بسته شدن معامله، فاصله زمانی آخرین خرید (تشخیص ریزش مشتری) و ارزش طول عمر
+            <p className="text-xs text-slate-500">
+              پایش احتمال موفقیت معامله، فاصله زمانی آخرین خرید و ارزش طول عمر هر مشتری
             </p>
           </div>
 

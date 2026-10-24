@@ -3,8 +3,6 @@ import {
   Plus,
   CheckCircle2,
   AlertTriangle,
-  Lock,
-  Unlock,
   Trash2,
   ChevronDown,
   ChevronLeft,
@@ -12,6 +10,8 @@ import {
   XCircle,
   RotateCcw,
   CreditCard,
+  Link2,
+  Coins,
 } from 'lucide-react';
 import {
   AccountNode,
@@ -29,11 +29,9 @@ import {
   DocStatus,
 } from '../data/erpSeedData';
 import {
-  DEFAULT_VAT_PERCENT,
   formatCurrency,
   validateJournalEntry,
   calculateInstallments,
-  calculateAssetDepreciation,
   evaluateBudgetControl,
   allocateCostCenterExpense,
   calculateFinancialStatements,
@@ -60,8 +58,6 @@ export type AccountingSubTab =
 interface AccountingModuleProps {
   activeRole: SystemRole;
   defaultBranch: string;
-  fiscalYearLocked: boolean;
-  onToggleFiscalYearLock: () => void;
   initialSubTab?: AccountingSubTab;
   accounts: AccountNode[];
   onAddAccount: (acc: AccountNode) => void;
@@ -87,7 +83,7 @@ interface AccountingModuleProps {
   costCenters: CostCenterRecord[];
   onUpdateCostCenterPolicy: (id: string, policy: 'WARN' | 'STOP') => void;
   fixedAssets: FixedAssetRecord[];
-  onScrapOrSellAsset: (id: string, newStatus: 'فروخته‌شده' | 'اسقاط‌شده') => void;
+  onScrapOrSellAsset: (id: string, newStatus: FixedAssetRecord['status']) => void;
   shareholders: ShareholderRecord[];
   inventoryItems: InventoryItemRecord[];
   onShowToast: (msg: string) => void;
@@ -96,8 +92,6 @@ interface AccountingModuleProps {
 export const AccountingModule: React.FC<AccountingModuleProps> = ({
   activeRole,
   defaultBranch,
-  fiscalYearLocked,
-  onToggleFiscalYearLock,
   initialSubTab = 'coa',
   accounts,
   onAddAccount,
@@ -130,7 +124,6 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<AccountingSubTab>(initialSubTab);
 
-  // Sync when parent switches between Accounting / Selling / Buying quick views
   React.useEffect(() => {
     setActiveSubTab(initialSubTab);
   }, [initialSubTab]);
@@ -150,6 +143,12 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
   const [glFilterAccount, setGlFilterAccount] = useState<string>('همه حساب‌ها');
   const [glFilterBranch, setGlFilterBranch] = useState<string>('همه شعب سازمان');
   const [glFilterVoucherType, setGlFilterVoucherType] = useState<string>('همه اسناد');
+
+  // Multi-Currency Revaluation State (حسابداری چندارزی و تسعیر ارز)
+  const [fxCurrency, setFxCurrency] = useState<'دلار آمریکا' | 'درهم امارات' | 'یوان چین' | 'تتر'>('دلار آمریکا');
+  const [fxBalanceAmount, setFxBalanceAmount] = useState(12500);
+  const [fxBookRate, setFxBookRate] = useState(58000);
+  const [fxCurrentRate, setFxCurrentRate] = useState(62400);
 
   // Journal Entry Form State
   const [jeTitle, setJeTitle] = useState('ثبت تسویه علی‌الحساب و انتقال بین بانکی');
@@ -224,7 +223,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
   const [showNewPurchaseForm, setShowNewPurchaseForm] = useState(false);
   const [pinvSupplier, setPinvSupplier] = useState('بازرگانی شنژن تریدینگ (واردات مستقیم)');
   const [pinvWarehouse, setPinvWarehouse] = useState('انبار مرکزی کهریزک');
-  const [pinvBranch, setPinvBranch] = useState('انبار مرکزی کهریزک');
+  const [pinvBranch] = useState('انبار مرکزی کهریزک');
   const [pinvLandedCost, setPinvLandedCost] = useState(3500000);
   const [pinvDocStatusMode, setPinvDocStatusMode] = useState<DocStatus>(1);
   const [purchaseLines, setPurchaseLines] = useState<InvoiceLineItem[]>([
@@ -299,8 +298,8 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
     );
   };
 
-  // Multi-Line Sales Invoice live calculation
-  const salesCalc = computeMultiLineInvoiceTotals(salesLines, DEFAULT_VAT_PERCENT);
+  // Multi-Line Sales Invoice live calculation (Tax Completely Removed)
+  const salesCalc = computeMultiLineInvoiceTotals(salesLines);
   const installmentPreview = calculateInstallments(salesCalc.grandTotal, [
     { label: 'پیش‌پرداخت نقد (۳۰٪)', percentage: 30, dueDays: 0 },
     { label: 'قسط اول - یک ماهه (۳۵٪)', percentage: 35, dueDays: 30 },
@@ -308,83 +307,71 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
   ]);
 
   // Multi-Line Purchase Invoice live calculation (Purchase Goods + Landed Cost)
-  const purchaseGoodsCalc = computeMultiLineInvoiceTotals(purchaseLines, 0);
-  const totalPurchaseCommitment = purchaseGoodsCalc.netBeforeTax + pinvLandedCost;
+  const purchaseGoodsCalc = computeMultiLineInvoiceTotals(purchaseLines);
+  const totalPurchaseCommitment = purchaseGoodsCalc.netTotal + pinvLandedCost;
 
   // Journal validation
   const journalValidation = validateJournalEntry(jeLines);
 
-  const applyJournalTemplate = (tpl: 'payroll' | 'depreciation' | 'partner_draw') => {
-    if (tpl === 'payroll') {
-      setJeTitle('ثبت سند حقوق و دستمزد ماهانه و کسورات قانونی');
+  const applyJournalTemplate = (tpl: 'clearing' | 'transfer' | 'partner_draw') => {
+    if (tpl === 'clearing') {
+      setJeTitle('سند تهاتر حساب دریافتنی و پرداختنی طرف تجاری');
       setJeLines([
         {
-          id: 'jl-p1',
-          accountCode: '5201',
-          accountName: 'هزینه حقوق، دستمزد و پورسانت تیم فروش',
-          partyType: 'پرسنل',
-          partyName: 'لیست حقوق پرسنل',
+          id: 'jl-c1',
+          accountCode: '2101',
+          accountName: 'حساب‌های پرداختنی تجاری (تامین‌کنندگان)',
+          partyType: 'تامین‌کننده',
+          partyName: 'توزیع‌کننده رسمی کویل و کارتریج پارس',
           costCenter: costCenters[0]?.name || 'فروشگاه و شوروم شعبه الهیه',
           dimensionBranch: 'شعبه مرکزی تهران',
-          debit: 68000000,
+          debit: 35000000,
           credit: 0,
-          note: 'ثبت حقوق و پورسانت آبان‌ماه پرسنل',
+          note: 'کسر از بدهی به تامین‌کننده بابت تهاتر',
         },
         {
-          id: 'jl-p2',
-          accountCode: '2102',
-          accountName: 'مالیات بر ارزش افزوده و کسورات تکلیفی پرداختنی',
-          partyType: '—',
-          partyName: 'سازمان تامین اجتماعی و دارایی',
+          id: 'jl-c2',
+          accountCode: '1102',
+          accountName: 'حساب‌های دریافتنی تجاری (مشتریان)',
+          partyType: 'مشتری',
+          partyName: 'پخش سراسری نیکوتین‌پارس (عمده)',
           costCenter: costCenters[0]?.name || 'فروشگاه و شوروم شعبه الهیه',
           dimensionBranch: 'شعبه مرکزی تهران',
           debit: 0,
-          credit: 8000000,
-          note: 'کسر مالیات تکلیفی حقوق و بیمه در مبدا',
+          credit: 35000000,
+          note: 'تسویه مطالبات از محل تهاتر دوجانبه',
+        },
+      ]);
+      onShowToast('قالب آماده «تهاتر حساب‌ها» بارگذاری شد.');
+    } else if (tpl === 'transfer') {
+      setJeTitle('سند انتقال وجه بین بانک ملت و صندوق شعبه الهیه');
+      setJeLines([
+        {
+          id: 'jl-t1',
+          accountCode: '110102',
+          accountName: 'صندوق فروشگاهی و کارتخوان شعبه الهیه',
+          partyType: '—',
+          partyName: 'خزانه شعبه الهیه',
+          costCenter: costCenters[0]?.name || 'فروشگاه و شوروم شعبه الهیه',
+          dimensionBranch: 'شعبه الهیه',
+          debit: 20000000,
+          credit: 0,
+          note: 'شارژ تنخواه و صندوق شعبه الهیه',
         },
         {
-          id: 'jl-p3',
+          id: 'jl-t2',
           accountCode: '110101',
           accountName: 'بانک ملت - شعبه مرکزی (حساب جاری پایا/ساتنا)',
-          partyType: 'پرسنل',
-          partyName: 'حواله گروهی پایا',
+          partyType: '—',
+          partyName: 'بانک ملت مرکزی',
           costCenter: costCenters[0]?.name || 'فروشگاه و شوروم شعبه الهیه',
           dimensionBranch: 'شعبه مرکزی تهران',
           debit: 0,
-          credit: 60000000,
-          note: 'واریز خالص حقوق از طریق فایل پایا',
+          credit: 20000000,
+          note: 'برداشت از حساب جاری مرکزی',
         },
       ]);
-      onShowToast('قالب آماده «سند حقوق و کسورات قانونی» بارگذاری شد.');
-    } else if (tpl === 'depreciation') {
-      setJeTitle('ثبت سند استهلاک ماهانه دارایی‌های ثابت');
-      setJeLines([
-        {
-          id: 'jl-d1',
-          accountCode: '5202',
-          accountName: 'هزینه استهلاک دارایی‌های ثابت و اجاره شعب',
-          partyType: '—',
-          partyName: 'اموال و تجهیزات شرکت',
-          costCenter: costCenters[0]?.name || 'فروشگاه و شوروم شعبه الهیه',
-          dimensionBranch: 'شعبه الهیه',
-          debit: 18333333,
-          credit: 0,
-          note: 'ثبت استهلاک خودکار ماهانه تجهیزات و وسایل نقلیه',
-        },
-        {
-          id: 'jl-d2',
-          accountCode: '1201',
-          accountName: 'اموال، ماشین‌آلات و تجهیزات فروشگاهی (خالص)',
-          partyType: '—',
-          partyName: 'اموال و تجهیزات شرکت',
-          costCenter: costCenters[0]?.name || 'فروشگاه و شوروم شعبه الهیه',
-          dimensionBranch: 'شعبه الهیه',
-          debit: 0,
-          credit: 18333333,
-          note: 'کاهش ارزش دفتری خالص دارایی‌ها',
-        },
-      ]);
-      onShowToast('قالب آماده «ثبت استهلاک ماهانه دارایی‌ها» بارگذاری شد.');
+      onShowToast('قالب آماده «انتقال بین حساب‌ها» بارگذاری شد.');
     } else {
       setJeTitle('سند برداشت و تسویه جاری شرکا');
       setJeLines([
@@ -477,7 +464,6 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
           : invTermsType === 'cash'
             ? salesCalc.grandTotal
             : Math.round(salesCalc.grandTotal * 0.3),
-      taxAmount: salesCalc.taxAmount,
       cogsAmount: salesCalc.totalCogs,
       itemsSummary: summary,
       lines: salesLines,
@@ -591,70 +577,46 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
     }))
   );
 
+  const fxGainLoss = fxBalanceAmount * (fxCurrentRate - fxBookRate);
+
   const subTabs: { id: AccountingSubTab; label: string }[] = [
     { id: 'coa', label: 'درخت حساب‌ها' },
     { id: 'gl_trial', label: 'دفتر کل و تراز آزمایشی' },
-    { id: 'statements', label: 'صورت‌های مالی' },
+    { id: 'statements', label: 'صورت‌های مالی و راس‌گیری' },
     { id: 'journal', label: 'اسناد روزنامه' },
     { id: 'sales_invoice', label: 'فاکتورهای فروش' },
     { id: 'purchase_invoice', label: 'فاکتورهای خرید' },
-    { id: 'payment_cheques', label: 'دریافت، پرداخت و چک' },
+    { id: 'payment_cheques', label: 'خزانه‌داری، چک و ارز' },
     { id: 'budget', label: 'مراکز هزینه و بودجه' },
-    { id: 'assets', label: 'دارایی‌های ثابت' },
+    { id: 'assets', label: 'دارایی ثابت و سهامداران' },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Minimalist Module Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-5 border-b border-slate-200/80">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+      {/* Module Header */}
+      <div className="bg-white p-6 rounded-xl border border-slate-200 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="space-y-1">
+          <h2 className="text-lg font-bold text-slate-900">
             حسابداری و مدیریت مالی
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            موتور ثبت دوبل تعهدی، کاردکس دائمی انبار و چرخه استاندارد اسناد (پیش‌نویس، ثبت قطعی و ابطال)
+          <p className="text-sm text-slate-500">
+            دفاتر کل، اسناد روزنامه دوبل، چرخه مالی فروش و خرید، خزانه‌داری، مراکز هزینه و دارایی‌های ثابت
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => {
-              if (!checkRolePermission(activeRole, 'unlock_fiscal_year')) {
-                onShowToast('خطای دسترسی: فقط نقش «مدیر کل سامانه» مجاز به بستن یا بازگشایی قفل سال مالی است.');
-                return;
-              }
-              onToggleFiscalYearLock();
-              onShowToast(
-                !fiscalYearLocked
-                  ? 'سند بستن دوره مالی صادر شد و سال مالی قفل گردید.'
-                  : 'قفل دوره مالی ۱۴۰۴ بازگشایی شد.'
-              );
-            }}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap shrink-0 ${
-              fiscalYearLocked
-                ? 'bg-amber-50 border-amber-200 text-amber-900'
-                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            {fiscalYearLocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-            <span>
-              {fiscalYearLocked ? 'سال مالی ۱۴۰۴: قفل‌شده' : 'بستن دوره مالی'}
-            </span>
-          </button>
-
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           <button
             type="button"
             onClick={() => setShowNewSalesModal(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0"
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>فاکتور فروش چندردیفه جدید</span>
+            <Plus className="w-4 h-4 shrink-0" />
+            <span>صدور فاکتور فروش جدید</span>
           </button>
         </div>
       </div>
 
-      {/* 9 Standard ERPNext Accounting Sub-tabs */}
-      <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100/80 border border-slate-200/60 rounded-xl">
+      {/* 9 Accounting Sub-tabs */}
+      <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-200/70 rounded-xl">
         {subTabs.map((tab) => {
           const active = activeSubTab === tab.id;
           return (
@@ -662,9 +624,9 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
               key={tab.id}
               type="button"
               onClick={() => setActiveSubTab(tab.id)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
+              className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                 active
-                  ? 'bg-white text-slate-900 font-semibold shadow-2xs'
+                  ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -675,33 +637,33 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
       </div>
 
       {/* =====================================================================
-          TAB 1: CHART OF ACCOUNTS (درخت حساب‌ها - Tree View واقعی)
+          TAB 1: CHART OF ACCOUNTS (درخت حساب‌ها)
          ===================================================================== */}
       {activeSubTab === 'coa' && (
-        <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-4">
+        <div className="bg-white p-6 rounded-xl border border-slate-200 space-y-5">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
+            <div className="space-y-1">
               <h3 className="text-base font-bold text-slate-900">
-                درختواره سلسله‌مراتبی حساب‌ها
+                درختواره حساب‌ها
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                نمایش مانده واقعی دفتر کل · قابلیت باز و بسته کردن زیرشاخه‌ها و تعریف سرفصل با انتخاب حساب مادر
+              <p className="text-xs text-slate-500">
+                سرفصل‌های حسابداری در سطوح گروه، کل، معین و تفصیلی به تفکیک ۵ دسته اصلی
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => setCollapsedCodes([])}
-                className="px-3 py-1.5 text-xs text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200"
+                className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200"
               >
-                باز کردن همه شاخه‌ها
+                باز کردن همه
               </button>
               <button
                 type="button"
                 onClick={() =>
                   setCollapsedCodes(accounts.filter((a) => a.level === 'کل').map((a) => a.code))
                 }
-                className="px-3 py-1.5 text-xs text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200"
+                className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200"
               >
                 جمع کردن سطح کل
               </button>
@@ -710,7 +672,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 onClick={() => setShowNewAccForm(!showNewAccForm)}
                 className="px-3.5 py-1.5 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 whitespace-nowrap"
               >
-                + تعریف سرفصل حساب جدید
+                + تعریف سرفصل جدید
               </button>
             </div>
           </div>
@@ -908,15 +870,14 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
 
         return (
           <div className="space-y-6">
-            {/* 6-Column Trial Balance with Level Selector & tfoot */}
             <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-base font-bold text-slate-900">
-                    تراز آزمایشی ۶ ستونی استاندارد
+                    تراز آزمایشی ۶ ستونی استاندارد و ابعاد حسابداری
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    تفکیک کامل سطوح حساب (جلوگیری از قاطی شدن حساب‌های گروه و معین) به همراه جمع کل ستون‌ها در فوتر جدول
+                    گزارش‌گیری متقاطع بر اساس سطح حساب (گروه، کل، معین) و ابعاد تحلیلی (شعبه، کانال فروش و مرکز هزینه)
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -1125,7 +1086,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
       })()}
 
       {/* =====================================================================
-          TAB 3: FINANCIAL STATEMENTS (صورت‌های مالی: سود و زیان، ترازنامه، سهامداران)
+          TAB 3: FINANCIAL STATEMENTS, CASH FLOW & AGING REPORT (صورت‌های مالی، جریان وجوه نقد و راس‌گیری)
          ===================================================================== */}
       {activeSubTab === 'statements' && (() => {
         const fin = calculateFinancialStatements(accounts);
@@ -1166,35 +1127,68 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
               </div>
             </div>
 
-            {/* Shareholders & Tax Rules */}
-            <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-4">
-              <div className="flex items-center justify-between">
+            {/* Cash Flow Statement & Aging Report (30/60/90 Days) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-4">
                 <div>
                   <h3 className="text-base font-bold text-slate-900">
-                    سهامداران، تقسیم سود و نرخ استاندارد مالیات بر ارزش افزوده ({DEFAULT_VAT_PERCENT}٪)
+                    صورت جریان وجوه نقد
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    نرخ مالیات بر ارزش افزوده در کل سامانه (فاکتور فروش، صندوق فروشگاهی و فروشگاه آنلاین) به صورت یکپارچه روی {DEFAULT_VAT_PERCENT}٪ تنظیم شده است
+                    تحلیل ورودی و خروجی نقدینگی در فعالیت‌های عملیاتی، سرمایه‌گذاری و تامین مالی
                   </p>
                 </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {shareholders.map((sh) => (
-                  <div key={sh.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-1.5 text-xs">
-                    <div className="font-bold text-slate-900">{sh.name}</div>
-                    <div className="text-slate-500 font-mono">
-                      کد سهامداری: {sh.folioNo} · سهم الشرکه: {sh.ownershipPercent}٪ ({formatCurrency(sh.sharesCount)} سهم)
-                    </div>
-                    <div className="pt-2 border-t border-slate-200/80 flex justify-between">
-                      <span className="text-slate-500">سرمایه ثبت‌شده:</span>
-                      <span className="font-mono font-bold text-slate-900">{formatCurrency(sh.capitalBalance)} ت</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">سود تقسیمی پرداخت‌شده:</span>
-                      <span className="font-mono font-semibold text-emerald-700">{formatCurrency(sh.dividendPaid)} ت</span>
-                    </div>
+                <div className="space-y-2.5 text-xs">
+                  <div className="p-3 rounded-lg bg-slate-50 flex justify-between">
+                    <span className="text-slate-700">جریان خالص نقد حاصل از فعالیت‌های عملیاتی:</span>
+                    <span className="font-mono font-bold text-emerald-700">+{formatCurrency(410000000)} تومان</span>
                   </div>
-                ))}
+                  <div className="p-3 rounded-lg bg-slate-50 flex justify-between">
+                    <span className="text-slate-700">جریان خالص نقد مصرف‌شده در سرمایه‌گذاری (تجهیزات):</span>
+                    <span className="font-mono font-bold text-rose-700">-{formatCurrency(140000000)} تومان</span>
+                  </div>
+                  <div className="p-3 rounded-lg bg-indigo-50/70 border border-indigo-200 flex justify-between font-bold text-slate-900">
+                    <span>موجودی نقد و بانک پایان دوره (حساب ۱۱۰۱):</span>
+                    <span className="font-mono text-indigo-700">{formatCurrency(1420000000)} تومان</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-4">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    گزارش راس‌گیری و سن بدهی و مطالبات (۳۰، ۶۰ و ۹۰ روزه)
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    تفکیک مطالبات مشتریان و بدهی به تامین‌کنندگان بر اساس بازه زمانی تاخیر
+                  </p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-right text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
+                        <th className="py-2 px-2">طرف حساب</th>
+                        <th className="py-2 px-2 text-left">۰ تا ۳۰ روز</th>
+                        <th className="py-2 px-2 text-left">۳۱ تا ۶۰ روز</th>
+                        <th className="py-2 px-2 text-left">بالای ۶۰ روز</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      <tr>
+                        <td className="py-2 px-2 font-semibold text-slate-900">پخش نیکوتین‌پارس (بدهکار)</td>
+                        <td className="py-2 px-2 font-mono text-left">{formatCurrency(50750000)}</td>
+                        <td className="py-2 px-2 font-mono text-left text-amber-700">{formatCurrency(50750000)}</td>
+                        <td className="py-2 px-2 font-mono text-left text-slate-400">۰</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-2 font-semibold text-slate-900">کویل و کارتریج پارس (طلبکار)</td>
+                        <td className="py-2 px-2 font-mono text-left">{formatCurrency(60000000)}</td>
+                        <td className="py-2 px-2 font-mono text-left text-slate-400">۰</td>
+                        <td className="py-2 px-2 font-mono text-left text-slate-400">۰</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -1202,7 +1196,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
       })()}
 
       {/* =====================================================================
-          TAB 4: JOURNAL ENTRY (اسناد روزنامه با انتخاب حساب، طرف حساب، مرکز هزینه و حذف ردیف)
+          TAB 4: JOURNAL ENTRY (اسناد روزنامه دوبل)
          ===================================================================== */}
       {activeSubTab === 'journal' && (
         <div className="space-y-6">
@@ -1213,24 +1207,24 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                   ثبت سند حسابداری روزنامه دوبل
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  انتخاب آزادانه سرفصل حساب، نوع و نام طرف حساب و مرکز هزینه یا شعبه برای هر آرتیکل همراه با کنترل تراز دوبل
+                  ثبت اسناد دستی دوبل برای تسویه‌ها، تهاترها، انتقال بین حساب‌ها و برداشت یا واریز شرکا
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-slate-500">قالب آماده:</span>
                 <button
                   type="button"
-                  onClick={() => applyJournalTemplate('payroll')}
+                  onClick={() => applyJournalTemplate('clearing')}
                   className="px-3 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg"
                 >
-                  قالب حقوق و دستمزد
+                  قالب تهاتر حساب‌ها
                 </button>
                 <button
                   type="button"
-                  onClick={() => applyJournalTemplate('depreciation')}
+                  onClick={() => applyJournalTemplate('transfer')}
                   className="px-3 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg"
                 >
-                  قالب استهلاک ماهانه
+                  قالب انتقال بین بانکی
                 </button>
                 <button
                   type="button"
@@ -1309,7 +1303,6 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                             <option value="—">—</option>
                             <option value="مشتری">مشتری</option>
                             <option value="تامین‌کننده">تامین‌کننده</option>
-                            <option value="پرسنل">پرسنل</option>
                             <option value="سهامدار">سهامدار</option>
                           </select>
                           <input
@@ -1471,7 +1464,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 </button>
                 <button
                   type="button"
-                  disabled={!journalValidation.isValid || fiscalYearLocked}
+                  disabled={!journalValidation.isValid}
                   onClick={() => {
                     onSaveJournalEntry({
                       id: `je-${Date.now()}`,
@@ -1491,7 +1484,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 </button>
                 <button
                   type="button"
-                  disabled={!journalValidation.isValid || fiscalYearLocked}
+                  disabled={!journalValidation.isValid}
                   onClick={() => {
                     if (!checkRolePermission(activeRole, 'post_journal')) {
                       onShowToast('خطای دسترسی: نقش فعلی شما مجوز ثبت قطعی سند روزنامه در دفتر کل را ندارد.');
@@ -1517,7 +1510,6 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
             </div>
           </div>
 
-          {/* List of Journal Entries with Document View */}
           <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-3">
             <h4 className="text-sm font-bold text-slate-900">
               لیست اسناد روزنامه (کلیک روی هر ردیف جهت باز کردن فرم کامل سند، ثبت قطعی یا ابطال)
@@ -1563,14 +1555,14 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
       )}
 
       {/* =====================================================================
-          TAB 5: SALES INVOICES (فاکتورهای فروش چندردیفه + چرخه Draft/Submit/Cancel)
+          TAB 5: SALES INVOICES (فاکتورهای فروش، اقساط، برگشت از فروش و اشتراکی - بدون مالیات)
          ===================================================================== */}
       {activeSubTab === 'sales_invoice' && (
         <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                فاکتورهای فروش، تقسیط ۳۰/۳۵/۳۵ و صدور خودکار سند بهای تمام‌شده
+                فاکتورهای فروش، تقسیط نسیه (۳۰/۳۵/۳۵)، اشتراک دوره‌ای و برگشت از فروش
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 روی هر فاکتور کلیک کنید تا نمای کامل سند باز شود و عملیات ثبت قطعی، ثبت دریافت، برگشت از فروش یا ابطال را انجام دهید
@@ -1591,8 +1583,8 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
                   <th className="py-2.5 px-3">شماره فاکتور</th>
                   <th className="py-2.5 px-3">مشتری · اقلام</th>
-                  <th className="py-2.5 px-3">وضعیت سند</th>
-                  <th className="py-2.5 px-3 text-left">مبلغ کل (با ارزش افزوده ۱۰٪)</th>
+                  <th className="py-2.5 px-3">وضعیت سند · الگوی پرداخت</th>
+                  <th className="py-2.5 px-3 text-left">مبلغ خالص فاکتور</th>
                   <th className="py-2.5 px-3 text-left">بهای تمام‌شده</th>
                   <th className="py-2.5 px-3 text-left">مانده دریافتنی</th>
                   <th className="py-2.5 px-3 text-left">عملیات سریع</th>
@@ -1620,7 +1612,9 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                       <td className="py-2.5 px-3">
                         <div className="flex flex-col gap-1 items-start">
                           {renderDocStatusBadge(inv.docstatus)}
-                          <span className="text-[11px] text-slate-500">{inv.status}</span>
+                          <span className="text-[11px] text-slate-500">
+                            {inv.status} ({inv.paymentTermsTemplate})
+                          </span>
                         </div>
                       </td>
                       <td className="py-2.5 px-3 font-mono tabular-nums font-semibold text-left">
@@ -1683,17 +1677,17 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
       )}
 
       {/* =====================================================================
-          TAB 6: PURCHASE INVOICES (فاکتورهای خرید چندردیفه + سرشکن گمرک به حساب 2104)
+          TAB 6: PURCHASE INVOICES (فاکتورهای خرید چندردیفه و برگشت از خرید)
          ===================================================================== */}
       {activeSubTab === 'purchase_invoice' && (
         <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                فاکتورهای خرید چندردیفه و سرشکن هزینه‌های گمرک (حساب ۲۱۰۴)
+                فاکتورهای خرید، یادداشت بدهکاری (برگشت از خرید) و بهای تمام‌شده
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                بستانکار کردن حساب تامین‌کننده (۲۱۰۱) به مبلغ خالص کالا و حساب واسط گمرک (۲۱۰۴) به مبلغ هزینه‌های ترخیص، و بدهکار کردن موجودی انبار (۱۱۰۴) به جمع بهای تمام‌شده
+                ثبت بدهی به تامین‌کننده، افزایش موجودی انبار و ثبت بهای تمام‌شده کالا در دفتر کل
               </p>
             </div>
             <button
@@ -1759,7 +1753,6 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 </div>
               </div>
 
-              {/* Multi-Line Purchase Items Table */}
               <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
                 <table className="w-full text-right text-xs border-collapse">
                   <thead>
@@ -1915,7 +1908,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 <div className="flex flex-wrap items-center gap-4 text-xs">
                   <span>
                     بهای خالص کالاها (بستانکار ۲۱۰۱):{' '}
-                    <strong className="font-mono">{formatCurrency(purchaseGoodsCalc.netBeforeTax)}</strong> ت
+                    <strong className="font-mono">{formatCurrency(purchaseGoodsCalc.netTotal)}</strong> ت
                   </span>
                   <span>
                     هزینه گمرک (بستانکار ۲۱۰۴):{' '}
@@ -2034,28 +2027,41 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
       )}
 
       {/* =====================================================================
-          TAB 7: PAYMENT ENTRY & CHEQUES (فرم مستقل ثبت دریافت و پرداخت و چک صیادی)
+          TAB 7: TREASURY, PAYMENT ENTRY, CHEQUES, GATEWAY LINKS & MULTI-CURRENCY
          ===================================================================== */}
       {activeSubTab === 'payment_cheques' && (
         <div className="space-y-6">
-          {/* Independent Payment Entry Section */}
           <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-base font-bold text-slate-900">
-                  اسناد دریافت و پرداخت خزانه‌داری و تسویه فاکتورهای باز
+                  ثبت دریافت و پرداخت خزانه‌داری و لینک تسویه درگاه پرداخت آنلاین
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  ثبت دریافت اقساط از مشتریان یا پرداخت به تامین‌کنندگان همراه با کسر خودکار از مانده فاکتور و صدور سند دفتر کل
+                  تسویه فاکتورها به صورت نقدی، کارتخوان، حواله بانکی (پایا/ساتنا)، چک یا ارسال لینک درگاه پرداخت آنلاین
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowNewPaymentForm(!showNewPaymentForm)}
-                className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 whitespace-nowrap"
-              >
-                + ثبت سند دریافت / پرداخت جدید
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    onShowToast(
+                      'لینک یکتای درگاه پرداخت اینترنتی برای فاکتور SINV-1404-0108 تولید و در حافظه کپی شد.'
+                    )
+                  }
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 whitespace-nowrap"
+                >
+                  <Link2 className="w-3.5 h-3.5" />
+                  <span>صدور لینک تسویه آنلاین فاکتور</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowNewPaymentForm(!showNewPaymentForm)}
+                  className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 whitespace-nowrap"
+                >
+                  + ثبت سند دریافت / پرداخت جدید
+                </button>
+              </div>
             </div>
 
             {showNewPaymentForm && (
@@ -2231,45 +2237,125 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
             </div>
           </div>
 
-          {/* Cheques Tracking */}
-          <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-4">
-            <h3 className="text-base font-bold text-slate-900">
-              مدیریت چک‌های صیادی و ثبت تاریخ وصول
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {cheques.map((chq) => (
-                <div
-                  key={chq.id}
-                  className="p-4 rounded-xl border border-slate-200 flex flex-col justify-between gap-3"
-                >
-                  <div className="space-y-1 text-xs">
-                    <div className="font-mono font-bold text-slate-900">
-                      صیادی: {chq.sayadiNo}
+          {/* Cheques Tracking & Multi-Currency Revaluation */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-7 bg-white p-5 rounded-xl border border-slate-200/80 space-y-4">
+              <h3 className="text-base font-bold text-slate-900">
+                مدیریت چک و سفته (در جریان وصول، پاس‌شده، خرج‌شده و برگشتی)
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {cheques.map((chq) => (
+                  <div
+                    key={chq.id}
+                    className="p-4 rounded-xl border border-slate-200 flex flex-col justify-between gap-3"
+                  >
+                    <div className="space-y-1 text-xs">
+                      <div className="font-mono font-bold text-slate-900">
+                        صیادی: {chq.sayadiNo}
+                      </div>
+                      <div className="font-semibold text-slate-800">
+                        {chq.partyName} ({chq.type})
+                      </div>
+                      <div className="text-slate-500">
+                        {chq.bankName} · سررسید: {chq.dueDate}
+                      </div>
+                      <div className="text-slate-600">وضعیت: {chq.status}</div>
                     </div>
-                    <div className="font-semibold text-slate-800">
-                      {chq.partyName} ({chq.type})
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                      <span className="font-mono font-bold text-sm text-slate-900">
+                        {formatCurrency(chq.amount)} ت
+                      </span>
+                      {chq.status === 'در جریان وصول' && (
+                        <button
+                          type="button"
+                          onClick={() => onClearCheque(chq.id)}
+                          className="px-3 py-1 text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-md hover:bg-emerald-100"
+                        >
+                          ثبت وصول چک
+                        </button>
+                      )}
                     </div>
-                    <div className="text-slate-500">
-                      {chq.bankName} · سررسید: {chq.dueDate}
-                    </div>
-                    <div className="text-slate-600">وضعیت: {chq.status}</div>
                   </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                    <span className="font-mono font-bold text-sm text-slate-900">
-                      {formatCurrency(chq.amount)} ت
-                    </span>
-                    {chq.status === 'در جریان وصول' && (
-                      <button
-                        type="button"
-                        onClick={() => onClearCheque(chq.id)}
-                        className="px-3 py-1 text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-md hover:bg-emerald-100"
-                      >
-                        ثبت وصول چک
-                      </button>
-                    )}
-                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Multi-Currency Accounting & Exchange Gain/Loss */}
+            <div className="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200/80 space-y-4">
+              <div className="flex items-center gap-2">
+                <Coins className="w-5 h-5 text-indigo-600" />
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    حسابداری چندارزی و تسعیر ارز خودکار
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    محاسبه خودکار سود و زیان تسعیر ارز (دلار، درهم، یوان و تتر)
+                  </p>
                 </div>
-              ))}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="block font-medium text-slate-700 mb-1">ارز خارجی</label>
+                  <select
+                    aria-label="انتخاب ارز خارجی"
+                    value={fxCurrency}
+                    onChange={(e) => setFxCurrency(e.target.value as typeof fxCurrency)}
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg"
+                  >
+                    <option value="دلار آمریکا">دلار آمریکا</option>
+                    <option value="درهم امارات">درهم امارات</option>
+                    <option value="یوان چین">یوان چین</option>
+                    <option value="تتر">تتر</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-medium text-slate-700 mb-1">موجودی ارزی</label>
+                  <input
+                    type="number"
+                    value={fxBalanceAmount}
+                    onChange={(e) => setFxBalanceAmount(Number(e.target.value) || 0)}
+                    className="w-full px-2.5 py-1.5 font-mono border border-slate-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block font-medium text-slate-700 mb-1">نرخ ثبت اولیه (تومان)</label>
+                  <input
+                    type="number"
+                    value={fxBookRate}
+                    onChange={(e) => setFxBookRate(Number(e.target.value) || 0)}
+                    className="w-full px-2.5 py-1.5 font-mono border border-slate-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block font-medium text-slate-700 mb-1">نرخ روز تسعیر (تومان)</label>
+                  <input
+                    type="number"
+                    value={fxCurrentRate}
+                    onChange={(e) => setFxCurrentRate(Number(e.target.value) || 0)}
+                    className="w-full px-2.5 py-1.5 font-mono border border-slate-300 rounded-lg"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">ارزش روز دارایی ارزی:</span>
+                  <span className="font-mono font-bold text-slate-900">
+                    {formatCurrency(fxBalanceAmount * fxCurrentRate)} تومان
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">سود / زیان تسعیر ارز ({fxCurrency}):</span>
+                  <span
+                    className={`font-mono font-bold ${
+                      fxGainLoss >= 0 ? 'text-emerald-700' : 'text-rose-700'
+                    }`}
+                  >
+                    {fxGainLoss >= 0 ? `+${formatCurrency(fxGainLoss)}` : formatCurrency(fxGainLoss)} تومان
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -2389,79 +2475,119 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
       )}
 
       {/* =====================================================================
-          TAB 9: FIXED ASSETS (دارایی‌های ثابت و جدول استهلاک خودکار)
+          TAB 9: FIXED ASSETS & SHAREHOLDERS (چرخه عمر دارایی، فروش/اسقاط/تجدید ارزیابی و مدیریت سهامداران)
          ===================================================================== */}
       {activeSubTab === 'assets' && (
-        <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-4">
-          <h3 className="text-base font-bold text-slate-900">
-            چرخه عمر دارایی‌های ثابت و محاسبه خودکار استهلاک
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-right text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
-                  <th className="py-2.5 px-3">کد پلاک اموال · نام دارایی</th>
-                  <th className="py-2.5 px-3">روش استهلاک</th>
-                  <th className="py-2.5 px-3 text-left">بهای تمام‌شده خرید</th>
-                  <th className="py-2.5 px-3 text-left">استهلاک ماهانه</th>
-                  <th className="py-2.5 px-3 text-left">ارزش دفتری فعلی</th>
-                  <th className="py-2.5 px-3">وضعیت · عملیات</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {fixedAssets.map((ast) => {
-                  const dep = calculateAssetDepreciation(
-                    ast.purchaseValue,
-                    ast.salvageValue,
-                    ast.usefulLifeMonths,
-                    ast.elapsedMonths,
-                    ast.method
-                  );
-                  return (
+        <div className="space-y-6">
+          <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-4">
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                چرخه عمر دارایی‌های ثابت، فروش، اسقاط و تجدید ارزیابی دارایی
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                ثبت خرید تجهیزات، خودرو و دکوراسیون فروشگاهی تا مرحله بهره‌برداری، فروش، اسقاط یا تجدید ارزیابی
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-right text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
+                    <th className="py-2.5 px-3">کد پلاک اموال · نام دارایی</th>
+                    <th className="py-2.5 px-3">دسته · محل استقرار</th>
+                    <th className="py-2.5 px-3">تاریخ خرید</th>
+                    <th className="py-2.5 px-3 text-left">بهای تمام‌شده خرید</th>
+                    <th className="py-2.5 px-3 text-left">ارزش دفتری فعلی</th>
+                    <th className="py-2.5 px-3">وضعیت · عملیات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {fixedAssets.map((ast) => (
                     <tr key={ast.id} className="hover:bg-slate-50">
                       <td className="py-2.5 px-3">
                         <div className="font-bold text-slate-900">{ast.name}</div>
-                        <div className="text-slate-500 font-mono">
-                          {ast.assetTag} · {ast.location}
-                        </div>
+                        <div className="text-slate-500 font-mono">{ast.assetTag}</div>
                       </td>
                       <td className="py-2.5 px-3 text-slate-600">
-                        {ast.method === 'straight-line' ? 'خط مستقیم' : 'نزولی مضاعف'}
+                        {ast.category} · {ast.location}
                       </td>
+                      <td className="py-2.5 px-3 font-mono text-slate-500">{ast.purchaseDate}</td>
                       <td className="py-2.5 px-3 font-mono text-left">
-                        {formatCurrency(ast.purchaseValue)}
-                      </td>
-                      <td className="py-2.5 px-3 font-mono text-left text-rose-700">
-                        {formatCurrency(dep.monthlyDepreciation)}
+                        {formatCurrency(ast.purchaseValue)} ت
                       </td>
                       <td className="py-2.5 px-3 font-mono font-bold text-left text-slate-900">
-                        {formatCurrency(dep.currentBookValue)}
+                        {formatCurrency(ast.currentBookValue)} ت
                       </td>
                       <td className="py-2.5 px-3">
-                        <div className="flex items-center gap-2">
-                          <span>{ast.status}</span>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-medium text-indigo-700">{ast.status}</span>
                           {ast.status === 'فعال در بهره‌برداری' && (
-                            <button
-                              type="button"
-                              onClick={() => onScrapOrSellAsset(ast.id, 'فروخته‌شده')}
-                              className="px-2 py-1 text-[11px] bg-slate-100 hover:bg-slate-200 rounded"
-                            >
-                              فروش/اسقاط
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => onScrapOrSellAsset(ast.id, 'تجدید ارزیابی‌شده')}
+                                className="px-2 py-1 text-[11px] bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded"
+                              >
+                                تجدید ارزیابی
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onScrapOrSellAsset(ast.id, 'فروخته‌شده')}
+                                className="px-2 py-1 text-[11px] bg-slate-100 hover:bg-slate-200 rounded"
+                              >
+                                فروش
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onScrapOrSellAsset(ast.id, 'اسقاط‌شده')}
+                                className="px-2 py-1 text-[11px] bg-rose-50 text-rose-700 hover:bg-rose-100 rounded"
+                              >
+                                اسقاط
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Shareholders & Share Ledger */}
+          <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-4">
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                مدیریت سهامداران، درصد سهام، انتقال سرمایه و تقسیم سود پایان سال
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                ثبت دفتر سهام شرکا، میزان آورده سرمایه‌ای و سود تقسیمی مصوب
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {shareholders.map((sh) => (
+                <div key={sh.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-1.5 text-xs">
+                  <div className="font-bold text-slate-900">{sh.name}</div>
+                  <div className="text-slate-500 font-mono">
+                    کد سهامداری: {sh.folioNo} · سهم الشرکه: {sh.ownershipPercent}٪ ({formatCurrency(sh.sharesCount)} سهم)
+                  </div>
+                  <div className="pt-2 border-t border-slate-200/80 flex justify-between">
+                    <span className="text-slate-500">سرمایه ثبت‌شده:</span>
+                    <span className="font-mono font-bold text-slate-900">{formatCurrency(sh.capitalBalance)} ت</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">سود تقسیمی پرداخت‌شده:</span>
+                    <span className="font-mono font-semibold text-emerald-700">{formatCurrency(sh.dividendPaid)} ت</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
       {/* =====================================================================
-          MODAL 1: MULTI-LINE NEW SALES INVOICE (فاکتور فروش چندردیفه)
+          MODAL 1: MULTI-LINE NEW SALES INVOICE (فاکتور فروش چندردیفه بدون مالیات)
          ===================================================================== */}
       {showNewSalesModal && (
         <div
@@ -2540,7 +2666,6 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 </div>
               </div>
 
-              {/* Dynamic Multi-Line Items Table */}
               <div className="border border-slate-200 rounded-lg overflow-hidden">
                 <table className="w-full text-right text-xs border-collapse">
                   <thead>
@@ -2709,15 +2834,15 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
 
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div>
-                  <div className="text-slate-500">جمع کل قبل از مالیات:</div>
+                  <div className="text-slate-500">جمع ناخالص اقلام:</div>
                   <div className="font-mono font-bold text-slate-900 mt-0.5">
-                    {formatCurrency(salesCalc.netBeforeTax)} تومان
+                    {formatCurrency(salesCalc.grossAmount)} تومان
                   </div>
                 </div>
                 <div>
-                  <div className="text-slate-500">مالیات بر ارزش افزوده ({DEFAULT_VAT_PERCENT}٪):</div>
+                  <div className="text-slate-500">مجموع تخفیف ردیف‌ها:</div>
                   <div className="font-mono font-bold text-indigo-700 mt-0.5">
-                    {formatCurrency(salesCalc.taxAmount)} تومان
+                    {formatCurrency(salesCalc.totalDiscount)} تومان
                   </div>
                 </div>
                 <div>
@@ -2727,7 +2852,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                   </div>
                 </div>
                 <div>
-                  <div className="text-slate-500">مبلغ قابل پرداخت نهایی:</div>
+                  <div className="text-slate-500">مبلغ خالص قابل پرداخت:</div>
                   <div className="font-mono font-bold text-emerald-700 text-sm mt-0.5">
                     {formatCurrency(salesCalc.grandTotal)} تومان
                   </div>
@@ -2770,7 +2895,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
       )}
 
       {/* =====================================================================
-          MODAL 2: ERPNEXT DOCUMENT FORM VIEW (نمای کامل سند و دکمه‌های چرخه حیات)
+          MODAL 2: DOCUMENT FORM VIEW (نمای کامل سند و دکمه‌های چرخه حیات)
          ===================================================================== */}
       {selectedDocView && (
         <div
@@ -2803,7 +2928,6 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                       {renderDocStatusBadge(doc.docstatus)}
                     </div>
 
-                    {/* Standard ERPNext Action Toolbar */}
                     <div className="flex flex-wrap items-center gap-2">
                       {doc.docstatus === 0 && (
                         <button
@@ -2865,17 +2989,11 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="grid grid-cols-3 gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
                     <div>
                       <div className="text-slate-400">مبلغ کل فاکتور:</div>
                       <div className="font-mono font-bold text-slate-900 mt-0.5">
                         {formatCurrency(doc.totalAmount)} تومان
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-slate-400">مالیات بر ارزش افزوده (۱۰٪):</div>
-                      <div className="font-mono font-semibold text-indigo-700 mt-0.5">
-                        {formatCurrency(doc.taxAmount)} تومان
                       </div>
                     </div>
                     <div>
